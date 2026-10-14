@@ -7,6 +7,9 @@ export interface Settings {
 }
 
 const KEY = 'birlikte:v1'
+
+/** Kayıtlı bilgi yoksa uygulama bunlarla açılır. */
+export const DEFAULT_SETTINGS: Settings = { a: 'Adem', b: 'Sena', start: '2025-01-10' }
 const subs = new Set<() => void>()
 let cache: Settings | null | undefined
 
@@ -14,9 +17,9 @@ function read(): Settings | null {
   if (cache !== undefined) return cache
   try {
     const raw = localStorage.getItem(KEY)
-    cache = raw ? (JSON.parse(raw) as Settings) : null
+    cache = raw ? (JSON.parse(raw) as Settings) : DEFAULT_SETTINGS
   } catch {
-    cache = null
+    cache = DEFAULT_SETTINGS
   }
   return cache
 }
