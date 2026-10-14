@@ -19,10 +19,12 @@ function Viewer({ photos, index, start, onIndex, onClose }: { photos: PhotoView[
   const p = photos[index]
   const [caption, setCaption] = useState(p.caption)
   const [armed, setArmed] = useState(false)
+  const [asking, setAsking] = useState(false)
   const [failed, setFailed] = useState<number | null>(null)
   useEffect(() => {
     setCaption(p.caption)
     setArmed(false)
+    setAsking(false)
   }, [p.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const go = onIndex
   const dayNo = daysBetween(parseISO(start), parseISO(p.takenAt)) + 1
@@ -33,10 +35,43 @@ function Viewer({ photos, index, start, onIndex, onClose }: { photos: PhotoView[
         <span>
           {index + 1} / {photos.length}
         </span>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Kapat">
-          <IconClose />
-        </button>
+        <div className="row">
+          <button type="button" className="viewer-del" onClick={() => setAsking(true)} aria-label="Bu fotoğrafı sil">
+            <IconTrash />
+            Sil
+          </button>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Kapat">
+            <IconClose />
+          </button>
+        </div>
       </div>
+
+      {asking && (
+        <div className="ask" role="alertdialog" aria-modal="true" aria-label="Fotoğrafı sil">
+          <div className="ask-box">
+            <h3>Bu fotoğrafı silelim mi?</h3>
+            <p className="muted">Fotoğraf yalnızca bu telefondan silinir ve geri getirilemez.</p>
+            <div className="row">
+              <button
+                type="button"
+                className="btn danger"
+                onClick={async () => {
+                  await deletePhoto(p.id)
+                  if (photos.length === 1) onClose()
+                  else onIndex(Math.min(index, photos.length - 2))
+                  setAsking(false)
+                }}
+              >
+                <IconTrash />
+                Sil
+              </button>
+              <button type="button" className="btn ghost" autoFocus onClick={() => setAsking(false)}>
+                Vazgeç
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {failed === p.id && (
         <p className="viewer-fail" role="alert">

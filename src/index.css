@@ -1402,3 +1402,48 @@ a.btn {
   border: 1px solid var(--line);
   z-index: 4;
 }
+
+.viewer-top .row {
+  gap: 6px;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.viewer-del {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 99px;
+  border: 1px solid rgb(255 93 125 / 0.5);
+  background: rgb(255 93 125 / 0.14);
+  color: #ff8ea3;
+  font-weight: 600;
+}
+.viewer-del svg {
+  width: 20px;
+  height: 20px;
+}
+.ask {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.6);
+}
+.ask-box {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 22px;
+  background: var(--plum);
+  border: 1px solid var(--line);
+}
+.ask-box h3 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.35rem;
+}
