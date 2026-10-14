@@ -30,25 +30,41 @@ export function SettingsPage({ settings }: { settings: Settings }) {
     }
   }
 
+  const [prog, setProg] = useState<[number, number] | null>(null)
+  const onProg = (d: number, t: number) => setProg([d, t])
+
+  const checkUpdate = async () => {
+    setMsg('Denetleniyor...')
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration()
+      await reg?.update()
+      setMsg('Denetlendi. Yeni sürüm varsa uygulama birkaç saniye içinde kendini yeniler.')
+    } catch {
+      setMsg('Şu an denetlenemedi. İnternet bağlantınızı kontrol edin.')
+    }
+  }
+
   const backup = async () => {
     try {
-      const n = await exportBackup(settings)
+      const n = await exportBackup(settings, onProg)
       setMsg(`Yedek indirildi (${n} fotoğraf). Dosyayı güvenli bir yere kaydedin.`)
     } catch {
       setMsg('Yedek alınamadı.')
     }
+    setProg(null)
   }
 
   const restore = async (f: File | undefined) => {
     if (!f) return
     try {
-      const { settings: s, count } = await importBackup(f)
+      const { settings: s, count } = await importBackup(f, onProg)
       const x = s as Settings | undefined
       if (x?.a && x?.b && x?.start) saveSettings(x)
       setMsg(`${count} fotoğraf geri yüklendi.`)
     } catch {
-      setMsg('Bu dosya bir Birlikte yedeği değil.')
+      setMsg('Bu dosya bir Birlikte yedeği değil ya da okunamadı.')
     }
+    setProg(null)
     if (file.current) file.current.value = ''
   }
 
@@ -152,7 +168,16 @@ export function SettingsPage({ settings }: { settings: Settings }) {
             Yedekten geri yükle
           </button>
         </div>
+        {prog && <p className="note" role="status">İşleniyor {prog[0]}/{prog[1]}...</p>}
         <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => restore(e.target.files?.[0])} />
+      </div>
+
+      <div className="card">
+        <h3>Uygulama</h3>
+        <p className="muted small-note">Sürüm: {__BUILD__}</p>
+        <button type="button" className="btn ghost" onClick={checkUpdate}>
+          Güncellemeleri denetle
+        </button>
       </div>
     </section>
   )

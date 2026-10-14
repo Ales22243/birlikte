@@ -1,58 +1,155 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Photo } from './db'
 import { toISO } from '../lib/time'
 
 export interface PhotoView extends Photo {
   url: string
+  /** Izgara için küçük sürüm; eski fotoğraflarda yoktur, o zaman tam boy kullanılır. */
+  thumbUrl: string
 }
 
 const Ctx = createContext<PhotoView[] | undefined>(undefined)
 
+interface Urls {
+  url: string
+  thumbUrl: string
+  thumbBlob?: Blob
+}
+
 export function PhotosProvider({ children }: { children: ReactNode }) {
   const rows = useLiveQuery(() => db.photos.orderBy('takenAt').reverse().toArray(), [])
   const [views, setViews] = useState<PhotoView[]>()
+  // Her değişiklikte tüm adresleri yeniden üretmeyiz; yalnızca yeni gelenler için üretir, silinenleri bırakırız.
+  const cache = useRef(new Map<number, Urls>())
 
   useEffect(() => {
     if (!rows) return
-    const v = rows.map((r) => ({ ...r, url: URL.createObjectURL(r.blob) }))
-    setViews(v)
-    return () => v.forEach((x) => URL.revokeObjectURL(x.url))
+    const live = new Set(rows.map((r) => r.id))
+    for (const [id, u] of cache.current) {
+      if (!live.has(id)) {
+        URL.revokeObjectURL(u.url)
+        if (u.thumbBlob) URL.revokeObjectURL(u.thumbUrl)
+        cache.current.delete(id)
+      }
+    }
+    setViews(
+      rows.map((r) => {
+        let u = cache.current.get(r.id)
+        if (!u) {
+          const url = URL.createObjectURL(r.blob)
+          u = r.thumb ? { url, thumbUrl: URL.createObjectURL(r.thumb), thumbBlob: r.thumb } : { url, thumbUrl: url }
+          cache.current.set(r.id, u)
+        }
+        return { ...r, url: u.url, thumbUrl: u.thumbUrl }
+      }),
+    )
   }, [rows])
+
+  useEffect(() => {
+    const c = cache.current
+    return () => {
+      for (const u of c.values()) {
+        URL.revokeObjectURL(u.url)
+        if (u.thumbBlob) URL.revokeObjectURL(u.thumbUrl)
+      }
+      c.clear()
+    }
+  }, [])
 
   return <Ctx.Provider value={views}>{children}</Ctx.Provider>
 }
 
 export const usePhotos = () => useContext(Ctx)
 
-async function shrink(file: File, max = 1600): Promise<Blob> {
-  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
-  const k = Math.min(1, max / Math.max(bmp.width, bmp.height))
-  const c = document.createElement('canvas')
-  c.width = Math.round(bmp.width * k)
-  c.height = Math.round(bmp.height * k)
-  c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height)
-  bmp.close()
-  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('toBlob'))), 'image/jpeg', 0.84))
+interface Decoded {
+  source: CanvasImageSource
+  width: number
+  height: number
+  release: () => void
 }
 
-/** Seçilen dosyaları küçültüp kaydeder; okunamayanların sayısını döndürür. */
-export async function addPhotos(files: FileList | File[]): Promise<number> {
-  let failed = 0
-  for (const f of Array.from(files)) {
+/** Dosyayı çözer. Önce hızlı yolu dener, olmazsa <img> ile çözer (eski Safari sürümleri için). */
+async function decode(file: Blob): Promise<Decoded> {
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    return { source: bmp, width: bmp.width, height: bmp.height, release: () => bmp.close() }
+  } catch {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.src = url
     try {
-      const blob = await shrink(f)
+      await img.decode()
+    } catch (e) {
+      URL.revokeObjectURL(url)
+      throw e
+    }
+    return { source: img, width: img.naturalWidth, height: img.naturalHeight, release: () => URL.revokeObjectURL(url) }
+  }
+}
+
+function render(d: Decoded, max: number, quality: number): Promise<Blob> {
+  const k = Math.min(1, max / Math.max(d.width, d.height))
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(d.width * k))
+  c.height = Math.max(1, Math.round(d.height * k))
+  c.getContext('2d')!.drawImage(d.source, 0, 0, c.width, c.height)
+  return new Promise((res, rej) =>
+    c.toBlob(
+      (b) => {
+        // iPhone, kullanılan tuvalin belleğini ancak boyutu sıfırlanınca geri verir.
+        c.width = c.height = 0
+        b ? res(b) : rej(new Error('Görsel oluşturulamadı'))
+      },
+      'image/jpeg',
+      quality,
+    ),
+  )
+}
+
+/** Tam boy (1600 px) ve ızgara için küçük (480 px) sürümü üretir. */
+async function prepare(file: Blob): Promise<{ blob: Blob; thumb: Blob }> {
+  const d = await decode(file)
+  try {
+    const blob = await render(d, 1600, 0.82)
+    const thumb = await render(d, 480, 0.7)
+    return { blob, thumb }
+  } finally {
+    d.release()
+  }
+}
+
+const breathe = () => new Promise<void>((r) => setTimeout(r, 30))
+
+export interface AddResult {
+  added: number
+  failed: string[]
+}
+
+/** Seçilen dosyaları birer birer işler (bellek dolmasın diye) ve ilerlemeyi bildirir. */
+export async function addPhotos(files: FileList | File[], onProgress?: (done: number, total: number) => void): Promise<AddResult> {
+  const list = Array.from(files)
+  const failed: string[] = []
+  let added = 0
+  onProgress?.(0, list.length)
+  for (const [i, f] of list.entries()) {
+    try {
+      const { blob, thumb } = await prepare(f)
       await db.photos.add({
         blob,
+        thumb,
         takenAt: toISO(new Date(f.lastModified || Date.now())),
         caption: '',
-        addedAt: Date.now(),
+        addedAt: Date.now() + i,
       } as Photo)
+      added++
     } catch {
-      failed++
+      failed.push(f.name)
     }
+    onProgress?.(i + 1, list.length)
+    await breathe()
   }
-  return failed
+  return { added, failed }
 }
 
 export const updatePhoto = (id: number, patch: Partial<Pick<Photo, 'caption' | 'takenAt'>>) =>
@@ -67,21 +164,27 @@ const toDataUrl = (b: Blob) =>
     r.readAsDataURL(b)
   })
 
-/** Adlar, tarih ve tüm fotoğrafları tek bir .json yedek dosyası olarak indirir. */
-export async function exportBackup(settings: unknown): Promise<number> {
+/** Adlar, tarih ve tüm fotoğrafları tek bir .json yedek dosyası olarak paylaşır ya da indirir. */
+export async function exportBackup(settings: unknown, onProgress?: (done: number, total: number) => void): Promise<number> {
   const rows = await db.photos.toArray()
-  const photos = await Promise.all(
-    rows.map(async (p) => ({ takenAt: p.takenAt, caption: p.caption, addedAt: p.addedAt, data: await toDataUrl(p.blob) })),
-  )
+  // Tek devasa metin yerine parça parça birleştiririz; bellek kullanımı düşük kalır.
+  const parts: BlobPart[] = [`{"app":"birlikte","v":1,"settings":${JSON.stringify(settings)},"photos":[`]
+  for (const [i, p] of rows.entries()) {
+    const item = { takenAt: p.takenAt, caption: p.caption, addedAt: p.addedAt, data: await toDataUrl(p.blob) }
+    parts.push((i ? ',' : '') + JSON.stringify(item))
+    onProgress?.(i + 1, rows.length)
+    await breathe()
+  }
+  parts.push(']}')
   const name = `birlikte-yedek-${toISO(new Date())}.json`
-  const file = new File([JSON.stringify({ app: 'birlikte', v: 1, settings, photos })], name, { type: 'application/json' })
+  const file = new File(parts, name, { type: 'application/json' })
   // Telefonlarda paylaşım menüsünü (WhatsApp, Dosyalar, AirDrop) açar; olmazsa dosya olarak indirir.
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: 'Birlikte yedek' })
-      return photos.length
+      return rows.length
     } catch (e) {
-      if ((e as Error).name === 'AbortError') return photos.length
+      if ((e as Error).name === 'AbortError') return rows.length
     }
   }
   const a = document.createElement('a')
@@ -89,18 +192,27 @@ export async function exportBackup(settings: unknown): Promise<number> {
   a.download = name
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 5000)
-  return photos.length
+  return rows.length
 }
 
 /** Yedek dosyasındaki fotoğrafları ekler; ad ve tarihi döndürür. */
-export async function importBackup(file: File): Promise<{ settings: unknown; count: number }> {
+export async function importBackup(file: File, onProgress?: (done: number, total: number) => void): Promise<{ settings: unknown; count: number }> {
   const j = JSON.parse(await file.text())
   if (j?.app !== 'birlikte' || !Array.isArray(j.photos)) throw new Error('Geçersiz yedek')
+  const items = j.photos as { takenAt: string; caption: string; addedAt: number; data: string }[]
   let count = 0
-  for (const p of j.photos as { takenAt: string; caption: string; addedAt: number; data: string }[]) {
+  for (const [i, p] of items.entries()) {
     const blob = await (await fetch(p.data)).blob()
-    await db.photos.add({ blob, takenAt: p.takenAt, caption: p.caption ?? '', addedAt: p.addedAt ?? Date.now() } as Photo)
+    let thumb: Blob | undefined
+    try {
+      thumb = (await prepare(blob)).thumb
+    } catch {
+      // küçük sürüm üretilemezse tam boy gösterilir
+    }
+    await db.photos.add({ blob, thumb, takenAt: p.takenAt, caption: p.caption ?? '', addedAt: p.addedAt ?? Date.now() } as Photo)
     count++
+    onProgress?.(i + 1, items.length)
+    await breathe()
   }
   return { settings: j.settings, count }
 }

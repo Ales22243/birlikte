@@ -1318,3 +1318,25 @@ a.btn {
   justify-items: start;
   gap: 8px;
 }
+
+.progress {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--plum);
+  border: 1px solid var(--line);
+}
+.progress i {
+  display: block;
+  height: 6px;
+  border-radius: 99px;
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--lilac), var(--rose));
+  transition: transform 0.25s;
+}
+.progress span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}

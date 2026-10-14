@@ -97,22 +97,29 @@ export function Photos({ settings }: { settings: Settings }) {
   const [open, setOpen] = useState<number | null>(null)
   const [film, setFilm] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState<[number, number] | null>(null)
   const [note, setNote] = useState('')
 
   const pick = async (files: FileList | null) => {
     if (!files?.length) return
+    const list = Array.from(files)
+    if (input.current) input.current.value = ''
     setBusy(true)
     setNote('')
-    const failed = await addPhotos(files)
+    const { added, failed } = await addPhotos(list, (d, t) => setProgress([d, t]))
     setBusy(false)
-    if (failed) setNote(`${failed} fotoğraf okunamadı. JPG, PNG veya WebP deneyin.`)
-    if (input.current) input.current.value = ''
+    setProgress(null)
+    setNote(
+      failed.length
+        ? `${added} fotoğraf eklendi, ${failed.length} tanesi okunamadı (${failed.slice(0, 2).join(', ')}${failed.length > 2 ? '...' : ''}). JPG, PNG veya HEIC olmalı.`
+        : `${added} fotoğraf eklendi.`,
+    )
   }
 
   const add = (
     <button type="button" className="btn" onClick={() => input.current?.click()} disabled={busy}>
       <IconPlus />
-      {busy ? 'Ekleniyor...' : 'Fotoğraf ekle'}
+      {progress ? `Ekleniyor ${progress[0]}/${progress[1]}` : 'Fotoğraf ekle'}
     </button>
   )
 
@@ -131,6 +138,12 @@ export function Photos({ settings }: { settings: Settings }) {
         </div>
       </header>
       <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => pick(e.target.files)} />
+      {progress && (
+        <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={progress[1]} aria-valuenow={progress[0]} aria-label="Fotoğraflar ekleniyor">
+          <i style={{ transform: `scaleX(${progress[1] ? progress[0] / progress[1] : 0})` }} />
+          <span>Fotoğraflar telefonda hazırlanıyor, ekranı kapatmayın.</span>
+        </div>
+      )}
       {note && <p className="note" role="status">{note}</p>}
 
       {photos && photos.length === 0 && (
@@ -148,7 +161,7 @@ export function Photos({ settings }: { settings: Settings }) {
           return (
             <li key={p.id}>
               <button type="button" className="tile" onClick={() => setOpen(i)} aria-label={p.caption || formatLong(parseISO(p.takenAt))}>
-                <img src={p.url} alt="" loading="lazy" />
+                <img src={p.thumbUrl} alt="" loading="lazy" decoding="async" />
                 {d >= 1 && <span className="chip">{d}. gün</span>}
               </button>
             </li>

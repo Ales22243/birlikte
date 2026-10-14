@@ -3,6 +3,7 @@ import Dexie, { type EntityTable } from 'dexie'
 export interface Photo {
   id: number
   blob: Blob
+  thumb?: Blob
   takenAt: string
   caption: string
   addedAt: number
