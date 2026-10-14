@@ -58,3 +58,39 @@ export async function addPhotos(files: FileList | File[]): Promise<number> {
 export const updatePhoto = (id: number, patch: Partial<Pick<Photo, 'caption' | 'takenAt'>>) =>
   db.photos.update(id, patch)
 export const deletePhoto = (id: number) => db.photos.delete(id)
+
+const toDataUrl = (b: Blob) =>
+  new Promise<string>((res, rej) => {
+    const r = new FileReader()
+    r.onload = () => res(r.result as string)
+    r.onerror = () => rej(r.error)
+    r.readAsDataURL(b)
+  })
+
+/** Adlar, tarih ve tüm fotoğrafları tek bir .json yedek dosyası olarak indirir. */
+export async function exportBackup(settings: unknown): Promise<number> {
+  const rows = await db.photos.toArray()
+  const photos = await Promise.all(
+    rows.map(async (p) => ({ takenAt: p.takenAt, caption: p.caption, addedAt: p.addedAt, data: await toDataUrl(p.blob) })),
+  )
+  const file = new Blob([JSON.stringify({ app: 'birlikte', v: 1, settings, photos })], { type: 'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(file)
+  a.download = `birlikte-yedek-${toISO(new Date())}.json`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+  return photos.length
+}
+
+/** Yedek dosyasındaki fotoğrafları ekler; ad ve tarihi döndürür. */
+export async function importBackup(file: File): Promise<{ settings: unknown; count: number }> {
+  const j = JSON.parse(await file.text())
+  if (j?.app !== 'birlikte' || !Array.isArray(j.photos)) throw new Error('Geçersiz yedek')
+  let count = 0
+  for (const p of j.photos as { takenAt: string; caption: string; addedAt: number; data: string }[]) {
+    const blob = await (await fetch(p.data)).blob()
+    await db.photos.add({ blob, takenAt: p.takenAt, caption: p.caption ?? '', addedAt: p.addedAt ?? Date.now() } as Photo)
+    count++
+  }
+  return { settings: j.settings, count }
+}

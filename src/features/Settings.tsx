@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { inviteLink, type Settings } from '../data/settings'
+import { useRef, useState } from 'react'
+import { inviteLink, saveSettings, type Settings } from '../data/settings'
+import { exportBackup, importBackup } from '../data/photos'
 import { IconShare } from '../ui/icons'
 import { SettingsForm } from './Setup'
 
 export function SettingsPage({ settings }: { settings: Settings }) {
   const [msg, setMsg] = useState('')
+  const file = useRef<HTMLInputElement>(null)
 
   const share = async () => {
     const url = inviteLink(settings)
@@ -18,6 +20,28 @@ export function SettingsPage({ settings }: { settings: Settings }) {
     } catch {
       setMsg('Bağlantı paylaşılamadı.')
     }
+  }
+
+  const backup = async () => {
+    try {
+      const n = await exportBackup(settings)
+      setMsg(`Yedek indirildi (${n} fotoğraf). Dosyayı güvenli bir yere kaydedin.`)
+    } catch {
+      setMsg('Yedek alınamadı.')
+    }
+  }
+
+  const restore = async (f: File | undefined) => {
+    if (!f) return
+    try {
+      const { settings: s, count } = await importBackup(f)
+      const x = s as Settings | undefined
+      if (x?.a && x?.b && x?.start) saveSettings(x)
+      setMsg(`${count} fotoğraf geri yüklendi.`)
+    } catch {
+      setMsg('Bu dosya bir Birlikte yedeği değil.')
+    }
+    if (file.current) file.current.value = ''
   }
 
   return (
@@ -35,6 +59,20 @@ export function SettingsPage({ settings }: { settings: Settings }) {
           <IconShare />
           Bağlantıyı paylaş
         </button>
+      </div>
+
+      <div className="card">
+        <h3>Yedek</h3>
+        <p className="muted">Fotoğraflar yalnızca bu telefonda durur. Telefon değiştirirseniz ya da tarayıcı verisini silerseniz kaybolmaması için yedek alın.</p>
+        <div className="row">
+          <button type="button" className="btn ghost" onClick={backup}>
+            Yedek al
+          </button>
+          <button type="button" className="btn ghost" onClick={() => file.current?.click()}>
+            Yedekten geri yükle
+          </button>
+        </div>
+        <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => restore(e.target.files?.[0])} />
       </div>
     </section>
   )
