@@ -34,7 +34,7 @@ export default function App() {
       <div className="app" data-tab={tab}>
         <main className="view">
           {tab === 'home' && <Home settings={settings} onOpenNotes={() => setTab('notes')} />}
-          {tab === 'notes' && <Notes />}
+          {tab === 'notes' && <Notes settings={settings} />}
           {tab === 'photos' && <Photos settings={settings} />}
           {tab === 'settings' && <SettingsPage settings={settings} />}
         </main>

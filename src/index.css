@@ -1101,3 +1101,220 @@ button {
 a.btn {
   text-decoration: none;
 }
+
+/* ---------- takvim görünümü (iPhone Takvim tarzı) ---------- */
+.cal-page {
+  gap: 10px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+}
+.cal-year {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--rose);
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+.cal-year span {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+.cal-head .row {
+  gap: 4px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.cal-today,
+.cal-add {
+  min-height: 44px;
+  min-width: 44px;
+  border: 0;
+  background: none;
+  color: var(--rose);
+  font-weight: 500;
+  font-size: 1.05rem;
+  display: grid;
+  place-items: center;
+  padding: 0 8px;
+}
+.cal-add svg {
+  width: 26px;
+  height: 26px;
+}
+.cal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+.cal-title h2 {
+  font-family: var(--sans);
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.cal-nav {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: none;
+  color: var(--rose);
+  font-size: 2rem;
+  line-height: 1;
+}
+.cal-week,
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.cal-week {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.cal-week .weekend,
+.cal-cell.weekend .num {
+  color: var(--muted);
+}
+.cal-grid {
+  touch-action: pan-y;
+  row-gap: 2px;
+}
+.cal-cell {
+  position: relative;
+  min-height: 52px;
+  border: 0;
+  background: none;
+  display: grid;
+  grid-template-rows: 34px 12px;
+  justify-items: center;
+  align-content: start;
+  padding: 4px 0 0;
+}
+.cal-cell.blank {
+  pointer-events: none;
+}
+.cal-cell .num {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.cal-cell.is-selected .num {
+  background: color-mix(in srgb, var(--blush) 18%, transparent);
+  font-weight: 600;
+}
+.cal-cell.is-today .num {
+  background: var(--rose);
+  color: var(--on-rose);
+  font-weight: 700;
+}
+.marks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 12px;
+  color: var(--rose);
+}
+.marks i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.marks svg {
+  flex: none;
+}
+.agenda {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 14px 12px;
+  border-radius: 22px;
+  background: var(--plum);
+  border: 1px solid var(--line);
+}
+.agenda-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.agenda-head h3 {
+  font-family: var(--sans);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.agenda-head span {
+  color: var(--gold);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.agenda-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ag {
+  display: grid;
+  grid-template-columns: 62px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 6px 0 6px 10px;
+  border-left: 4px solid var(--rose);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--rose) 12%, transparent);
+}
+.ag.special {
+  border-left-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 14%, transparent);
+  grid-template-columns: 62px 1fr;
+}
+.ag-time {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  padding-top: 3px;
+}
+.ag.special .ag-time {
+  color: var(--gold);
+}
+.ag-body {
+  display: grid;
+  min-width: 0;
+}
+.ag-body strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ag-body p,
+.ag-body small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.ag-act {
+  display: flex;
+}
+.ag-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
