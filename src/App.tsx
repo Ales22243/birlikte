@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { THEMES, usePrefs } from './data/prefs'
 import { useSettings } from './data/settings'
 import { PhotosProvider } from './data/photos'
-import { Days } from './features/Days'
 import { Home } from './features/Home'
 import { Photos } from './features/Photos'
 import { SettingsPage } from './features/Settings'
@@ -27,7 +26,6 @@ export default function App() {
         <main className="view">
           {tab === 'home' && <Home settings={settings} />}
           {tab === 'photos' && <Photos settings={settings} />}
-          {tab === 'days' && <Days settings={settings} />}
           {tab === 'settings' && <SettingsPage settings={settings} />}
         </main>
         <Nav tab={tab} onChange={setTab} />

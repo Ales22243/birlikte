@@ -1,11 +1,10 @@
-import { IconHeart, IconPhotos, IconSettings, IconStar } from './icons'
+import { IconHeart, IconPhotos, IconSettings } from './icons'
 
-export type Tab = 'home' | 'photos' | 'days' | 'settings'
+export type Tab = 'home' | 'photos' | 'settings'
 
 const ITEMS: { id: Tab; label: string; Icon: () => React.JSX.Element }[] = [
   { id: 'home', label: 'Biz', Icon: IconHeart },
   { id: 'photos', label: 'Anılar', Icon: IconPhotos },
-  { id: 'days', label: 'Özel günler', Icon: IconStar },
   { id: 'settings', label: 'Ayarlar', Icon: IconSettings },
 ]
 
