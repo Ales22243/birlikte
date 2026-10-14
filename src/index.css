@@ -1357,3 +1357,48 @@ a.btn {
   color: var(--gold);
   z-index: 2;
 }
+
+/* ---------- fotoğraf seçme / silme ---------- */
+.tile .check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  background: rgb(0 0 0 / 0.3);
+  color: var(--on-rose);
+}
+.tile .check svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
+}
+.tile.picked {
+  outline: 3px solid var(--rose);
+  outline-offset: -3px;
+}
+.tile.picked .check {
+  background: var(--rose);
+  border-color: var(--rose);
+}
+.tile.picked img {
+  opacity: 0.7;
+}
+.selectbar {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  margin: 0 -8px;
+  border-radius: 20px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line);
+  z-index: 4;
+}

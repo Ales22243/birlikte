@@ -186,6 +186,7 @@ export async function addPhotos(files: FileList | File[], onProgress?: (done: nu
 export const updatePhoto = (id: number, patch: Partial<Pick<Photo, 'caption' | 'takenAt'>>) =>
   db.photos.update(id, patch)
 export const deletePhoto = (id: number) => db.photos.delete(id)
+export const deletePhotos = (ids: number[]) => db.photos.bulkDelete(ids)
 
 const toDataUrl = (b: Blob) =>
   new Promise<string>((res, rej) => {

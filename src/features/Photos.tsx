@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { Settings } from '../data/settings'
-import { addPhotos, deletePhoto, updatePhoto, usePhotos, type PhotoView } from '../data/photos'
+import { addPhotos, deletePhoto, deletePhotos, updatePhoto, usePhotos, type PhotoView } from '../data/photos'
 import { daysBetween, formatLong, parseISO } from '../lib/time'
-import { IconClose, IconPhotos, IconPlay, IconPlus, IconTrash } from '../ui/icons'
+import { IconCheck, IconClose, IconPhotos, IconPlay, IconPlus, IconTrash } from '../ui/icons'
 import { Film } from './Film'
 
 function TileImage({ src }: { src: string }) {
@@ -115,6 +115,30 @@ export function Photos({ settings }: { settings: Settings }) {
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<[number, number] | null>(null)
   const [note, setNote] = useState('')
+  const [selecting, setSelecting] = useState(false)
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const [confirm, setConfirm] = useState(false)
+
+  const stopSelecting = () => {
+    setSelecting(false)
+    setPicked(new Set())
+    setConfirm(false)
+  }
+  const toggle = (id: number) => {
+    setConfirm(false)
+    setPicked((s) => {
+      const n = new Set(s)
+      if (!n.delete(id)) n.add(id)
+      return n
+    })
+  }
+  const removePicked = async () => {
+    if (!confirm) return setConfirm(true)
+    const n = picked.size
+    await deletePhotos([...picked])
+    stopSelecting()
+    setNote(`${n} fotoğraf silindi.`)
+  }
 
   const pick = async (files: FileList | null) => {
     if (!files?.length) return
@@ -144,13 +168,18 @@ export function Photos({ settings }: { settings: Settings }) {
       <header className="page-head">
         <h2>Anılarımız</h2>
         <div className="row">
-          {photos && photos.length > 0 && (
+          {photos && photos.length > 0 && !selecting && (
             <button type="button" className="btn ghost" onClick={() => setFilm(true)}>
               <IconPlay />
               Anı filmi
             </button>
           )}
-          {add}
+          {photos && photos.length > 0 && (
+            <button type="button" className="btn ghost" onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+              {selecting ? 'Vazgeç' : 'Seç'}
+            </button>
+          )}
+          {!selecting && add}
         </div>
       </header>
       <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => pick(e.target.files)} />
@@ -176,14 +205,40 @@ export function Photos({ settings }: { settings: Settings }) {
           const d = daysBetween(parseISO(settings.start), parseISO(p.takenAt)) + 1
           return (
             <li key={p.id}>
-              <button type="button" className="tile" onClick={() => setOpen(i)} aria-label={p.caption || formatLong(parseISO(p.takenAt))}>
+              <button
+                type="button"
+                className={`tile${selecting && picked.has(p.id) ? ' picked' : ''}`}
+                onClick={() => (selecting ? toggle(p.id) : setOpen(i))}
+                aria-label={p.caption || formatLong(parseISO(p.takenAt))}
+                aria-pressed={selecting ? picked.has(p.id) : undefined}
+              >
                 <TileImage src={p.thumbUrl} />
                 {d >= 1 && <span className="chip">{d}. gün</span>}
+                {selecting && (
+                  <span className="check" aria-hidden="true">
+                    {picked.has(p.id) && <IconCheck />}
+                  </span>
+                )}
               </button>
             </li>
           )
         })}
       </ul>
+
+      {selecting && (
+        <div className="selectbar" role="region" aria-label="Seçili fotoğraflar">
+          <span>{picked.size ? `${picked.size} seçili` : 'Silmek istediklerine dokun'}</span>
+          <div className="row">
+            <button type="button" className="btn ghost" onClick={() => setPicked(new Set(photos?.map((p) => p.id)))}>
+              Tümünü seç
+            </button>
+            <button type="button" className={confirm ? 'btn danger' : 'btn'} disabled={!picked.size} onClick={removePicked}>
+              <IconTrash />
+              {confirm ? `${picked.size} fotoğrafı kalıcı sil` : 'Sil'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {photos && open !== null && photos[open] && (
