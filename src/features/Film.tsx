@@ -1,17 +1,52 @@
-import { useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import type { PhotoView } from '../data/photos'
+import { savePrefs, usePrefs } from '../data/prefs'
 import { daysBetween, formatLong, parseISO } from '../lib/time'
-import { KenBurns } from '../ui/KenBurns'
-import { IconClose } from '../ui/icons'
+import { startMusicBox, type Player } from '../lib/music'
+import { KenBurns, Polaroid } from '../ui/KenBurns'
+import { HeartShape, IconClose } from '../ui/icons'
 
 const SECONDS = 5
 
-/** Anıları sırayla, hareketli geçişlerle oynatan tam ekran film. */
+function RainOfHearts() {
+  const reduce = useReducedMotion()
+  const hearts = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => ({
+        id: i,
+        left: 4 + Math.random() * 92,
+        size: 12 + Math.random() * 16,
+        delay: Math.random() * 8,
+        dur: 7 + Math.random() * 5,
+        drift: (Math.random() - 0.5) * 60,
+      })),
+    [],
+  )
+  if (reduce) return null
+  return (
+    <div className="rain" aria-hidden="true">
+      {hearts.map((h) => (
+        <motion.span
+          key={h.id}
+          style={{ left: `${h.left}%` }}
+          initial={{ y: '105vh', opacity: 0 }}
+          animate={{ y: '-10vh', x: h.drift, opacity: [0, 0.7, 0.7, 0] }}
+          transition={{ duration: h.dur, delay: h.delay, repeat: Infinity, ease: 'linear' }}
+        >
+          <HeartShape size={h.size} />
+        </motion.span>
+      ))}
+    </div>
+  )
+}
+
+/** Anıları sırayla, hareketli geçişlerle, müzik eşliğinde oynatan tam ekran film. */
 export function Film({ photos, start, onClose }: { photos: PhotoView[]; start: string; onClose: () => void }) {
   // Eskiden yeniye oynat
   const [list] = useState(() => [...photos].reverse())
   const [i, setI] = useState(0)
+  const { music } = usePrefs()
   const done = i >= list.length
 
   useEffect(() => {
@@ -19,6 +54,17 @@ export function Film({ photos, start, onClose }: { photos: PhotoView[]; start: s
     const t = setTimeout(() => setI((n) => n + 1), SECONDS * 1000)
     return () => clearTimeout(t)
   }, [i, done])
+
+  useEffect(() => {
+    if (!music) return
+    let p: Player | undefined
+    try {
+      p = startMusicBox()
+    } catch {
+      // ses açılamazsa film sessiz devam eder
+    }
+    return () => p?.stop()
+  }, [music])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -33,11 +79,15 @@ export function Film({ photos, start, onClose }: { photos: PhotoView[]; start: s
   const p = list[Math.min(i, list.length - 1)]
   const date = parseISO(p.takenAt)
   const dayNo = daysBetween(parseISO(start), date) + 1
+  const polaroid = i % 3 === 2
 
   return (
     <div className="film" role="dialog" aria-modal="true" aria-label="Anı filmi">
-      <AnimatePresence mode="sync">{!done && <KenBurns key={p.id} src={p.url} index={i} seconds={SECONDS} />}</AnimatePresence>
+      <AnimatePresence mode="sync">
+        {!done && (polaroid ? <Polaroid key={p.id} src={p.url} index={i} seconds={SECONDS} /> : <KenBurns key={p.id} src={p.url} index={i} seconds={SECONDS} />)}
+      </AnimatePresence>
       <div className="film-scrim" />
+      {!done && <RainOfHearts />}
 
       <div className="film-top">
         <div className="segs" aria-hidden="true">
@@ -47,9 +97,14 @@ export function Film({ photos, start, onClose }: { photos: PhotoView[]; start: s
             </span>
           ))}
         </div>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Filmi kapat">
-          <IconClose />
-        </button>
+        <div className="row">
+          <button type="button" className="btn ghost small" aria-pressed={music} onClick={() => savePrefs({ music: !music })}>
+            Müzik: {music ? 'açık' : 'kapalı'}
+          </button>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Filmi kapat">
+            <IconClose />
+          </button>
+        </div>
       </div>
 
       {!done && (

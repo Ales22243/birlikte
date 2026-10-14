@@ -1,12 +1,16 @@
 import { useRef, useState } from 'react'
 import { inviteLink, saveSettings, type Settings } from '../data/settings'
 import { exportBackup, importBackup } from '../data/photos'
+import { THEMES, savePrefs, usePrefs, type HomeStyle } from '../data/prefs'
+import { buildMilestones, daysBetween, parseISO } from '../lib/time'
+import { buildCalendar, downloadCalendar } from '../lib/ics'
 import { IconShare } from '../ui/icons'
 import { SettingsForm } from './Setup'
 
 export function SettingsPage({ settings }: { settings: Settings }) {
   const [msg, setMsg] = useState('')
   const file = useRef<HTMLInputElement>(null)
+  const prefs = usePrefs()
 
   const share = async () => {
     const url = inviteLink(settings)
@@ -44,11 +48,37 @@ export function SettingsPage({ settings }: { settings: Settings }) {
     if (file.current) file.current.value = ''
   }
 
+  const calendar = () => {
+    const now = new Date()
+    const list = buildMilestones(parseISO(settings.start)).filter((m) => daysBetween(now, m.date) >= 0 && daysBetween(now, m.date) < 365 * 6)
+    downloadCalendar(buildCalendar(settings.a, settings.b, list))
+    setMsg(`${list.length} özel gün takvim dosyasına yazıldı. Dosyayı açıp "Takvime ekle"ye dokunun.`)
+  }
+
   return (
     <section className="page">
       <header className="page-head">
         <h2>Ayarlar</h2>
       </header>
+      <div className="card wide">
+        <h3>Görünüm</h3>
+        <div className="swatches" role="radiogroup" aria-label="Tema">
+          {THEMES.map((t) => (
+            <button key={t.id} type="button" role="radio" aria-checked={prefs.theme === t.id} className="swatch" onClick={() => savePrefs({ theme: t.id })}>
+              <i style={{ background: t.bar }} />
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="seg" role="radiogroup" aria-label="Ana ekran stili">
+          {(['kalp', 'klasik'] as HomeStyle[]).map((v) => (
+            <button key={v} type="button" role="radio" aria-checked={prefs.style === v} onClick={() => savePrefs({ style: v })}>
+              {v === 'kalp' ? 'Kalp sayaç' : 'Büyük sayı'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <SettingsForm initial={settings} submit="Kaydet" onDone={() => setMsg('Kaydedildi.')} />
       {msg && <p className="note" role="status">{msg}</p>}
 
@@ -58,6 +88,14 @@ export function SettingsPage({ settings }: { settings: Settings }) {
         <button type="button" className="btn ghost" onClick={share}>
           <IconShare />
           Bağlantıyı paylaş
+        </button>
+      </div>
+
+      <div className="card">
+        <h3>Özel gün hatırlatıcıları</h3>
+        <p className="muted">100. gün, 4. ay dönümü, yıl dönümü gibi günler telefonunun takvimine eklenir ve o sabah 9'da bildirim gelir. Bir önceki akşam da hatırlatır.</p>
+        <button type="button" className="btn ghost" onClick={calendar}>
+          Takvim dosyasını indir
         </button>
       </div>
 

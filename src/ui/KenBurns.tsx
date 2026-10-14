@@ -36,3 +36,27 @@ export function KenBurns({ src, index, seconds }: { src: string; index: number; 
     </motion.div>
   )
 }
+
+/** Bulanık fotoğraf zemini üzerinde hafif dönerek yerine oturan polaroid kartı. */
+export function Polaroid({ src, index, seconds }: { src: string; index: number; seconds: number }) {
+  const reduce = useReducedMotion()
+  const tilt = index % 2 ? 4 : -4
+  return (
+    <motion.div className="kb polaroid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.9 }}>
+      <img className="polaroid-bg" src={src} alt="" draggable={false} />
+      <motion.figure
+        className="polaroid-card"
+        initial={reduce ? false : { y: '60%', rotate: tilt * 3, scale: 0.8, opacity: 0 }}
+        animate={reduce ? undefined : { y: 0, rotate: tilt * 0.6, scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 60, damping: 14, mass: 1.2 }}
+      >
+        <img src={src} alt="" draggable={false} />
+        <motion.div
+          className="polaroid-sway"
+          animate={reduce ? undefined : { rotate: [0, tilt * 0.3, 0] }}
+          transition={{ duration: seconds, ease: 'easeInOut' }}
+        />
+      </motion.figure>
+    </motion.div>
+  )
+}

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { THEMES, usePrefs } from './data/prefs'
 import { useSettings } from './data/settings'
 import { PhotosProvider } from './data/photos'
 import { Days } from './features/Days'
@@ -11,6 +12,12 @@ import { Nav, type Tab } from './ui/Nav'
 export default function App() {
   const settings = useSettings()
   const [tab, setTab] = useState<Tab>('home')
+  const { theme } = usePrefs()
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEMES.find((t) => t.id === theme)!.bar)
+  }, [theme])
 
   if (!settings) return <Setup />
 

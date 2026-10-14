@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, animate, motion, useReducedMotion } from 'framer-motion'
 import type { Settings } from '../data/settings'
+import { usePrefs } from '../data/prefs'
 import { usePhotos } from '../data/photos'
 import { addDays, buildMilestones, daysBetween, parseISO, ymd, ymdText } from '../lib/time'
 import { useNow } from '../lib/useNow'
@@ -49,6 +50,7 @@ function Elapsed({ start }: { start: Date }) {
 
 export function Home({ settings }: { settings: Settings }) {
   const photos = usePhotos()
+  const { style } = usePrefs()
   const now = useNow(60_000)
   const start = useMemo(() => parseISO(settings.start), [settings.start])
   const passed = Math.max(0, daysBetween(start, now))
@@ -134,11 +136,34 @@ export function Home({ settings }: { settings: Settings }) {
           <span>{settings.b}</span>
         </header>
 
-        <div className="hero">
+        <div className={`hero ${style}`}>
           <p className="hero-over">{todayMilestone ? `Bugün ${todayMilestone.label}!` : 'Birlikte'}</p>
-          <h1 className="hero-num" aria-label={`${passed} gün`}>
-            {fmt(shown)}
-          </h1>
+          {style === 'kalp' ? (
+            <div className="heart-count">
+              <svg className="heart-bg" viewBox="-4 -4 108 98" aria-hidden="true">
+                <defs>
+                  <linearGradient id="hg" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="var(--rose)" stopOpacity="0.5" />
+                    <stop offset="1" stopColor="var(--lilac)" stopOpacity="0.3" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M50 86C12 58 0 40 0 24A23 23 0 0 1 50 17 23 23 0 0 1 100 24C100 40 88 58 50 86Z"
+                  fill="url(#hg)"
+                  stroke="var(--rose)"
+                  strokeWidth="1.4"
+                />
+              </svg>
+              <h1 className="hero-num" aria-label={`${passed} gün`}>
+                {fmt(shown)}
+              </h1>
+              <span className="heart-unit">gün</span>
+            </div>
+          ) : (
+            <h1 className="hero-num" aria-label={`${passed} gün`}>
+              {fmt(shown)}
+            </h1>
+          )}
           <p className="hero-under">gündür birlikteyiz</p>
           <p className="hero-sub">
             Bugün {fmt(dayNo)}. günümüz
