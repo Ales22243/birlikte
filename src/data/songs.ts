@@ -7,7 +7,7 @@ export async function addSongs(files: FileList | File[]): Promise<number> {
   let n = 0
   for (const f of Array.from(files)) {
     if (!f.type.startsWith('audio/') && !/\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(f.name)) continue
-    await db.songs.add({ name: f.name.replace(/\.[^.]+$/, ''), blob: f } as Song)
+    await db.songs.add({ name: f.name.replace(/\.[^.]+$/, ''), blob: f } as unknown as Song)
     n++
   }
   return n
