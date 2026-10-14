@@ -1,6 +1,5 @@
-import type { Milestone } from './time'
-import type { Note } from '../data/db'
-import { toISO } from './time'
+import type { Milestone } from './time.ts'
+import { toISO } from './time.ts'
 
 const esc = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`)
 const ymd8 = (d: Date) => toISO(d).replaceAll('-', '')
@@ -8,7 +7,7 @@ const ymd8 = (d: Date) => toISO(d).replaceAll('-', '')
 /** Önümüzdeki özel günleri, o gün sabah 09:00 ve bir gün önce akşam 18:00 hatırlatmalı takvim dosyası. */
 export function buildCalendar(a: string, b: string, list: Milestone[]): string {
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Birlikte//TR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Birlikte']
+  const lines: string[] = []
   for (const m of list) {
     const next = new Date(m.date.getFullYear(), m.date.getMonth(), m.date.getDate() + 1)
     lines.push(
@@ -33,24 +32,22 @@ export function buildCalendar(a: string, b: string, list: Milestone[]): string {
       'END:VEVENT',
     )
   }
-  lines.push('END:VCALENDAR')
-  return lines.join('\r\n')
+  return wrapCalendar(lines, 'Birlikte özel günler')
 }
 
-export function downloadCalendar(text: string, name = 'birlikte-ozel-gunler.ics') {
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }))
-  a.download = name
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+interface NoteLike {
+  id: number
+  title: string
+  text: string
+  date: string
+  time: string
 }
 
-/** Tek bir not için takvim dosyası: saat varsa tam saatinde ve 1 saat önce, yoksa o sabah 9'da ve önceki akşam 18:00'de hatırlatır. */
-export function buildNoteCalendar(n: Pick<Note, 'id' | 'title' | 'text' | 'date' | 'time'>): string {
+function noteEvent(n: NoteLike): string[] {
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
   const day = n.date.replaceAll('-', '')
   const timed = /^\d{2}:\d{2}$/.test(n.time)
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Birlikte//TR', 'BEGIN:VEVENT', `UID:not${n.id}-${day}@birlikte`, `DTSTAMP:${stamp}`]
+  const lines = ['BEGIN:VEVENT', `UID:not${n.id}-${day}@birlikte`, `DTSTAMP:${stamp}`]
   if (timed) {
     lines.push(`DTSTART:${day}T${n.time.replace(':', '')}00`, 'DURATION:PT30M')
   } else {
@@ -68,6 +65,17 @@ export function buildNoteCalendar(n: Pick<Note, 'id' | 'title' | 'text' | 'date'
     alarm('PT9H', n.title)
     alarm('-PT6H', `Yarın: ${n.title}`)
   }
-  lines.push('END:VEVENT', 'END:VCALENDAR')
-  return lines.join('\r\n')
+  lines.push('END:VEVENT')
+  return lines
 }
+
+const wrap = (events: string[]) =>
+  ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Birlikte//TR', 'X-WR-CALNAME:Birlikte notları', ...events, 'END:VCALENDAR'].join('\r\n')
+
+/** Tek not: saat varsa tam saatinde ve 1 saat önce, yoksa o sabah 9'da ve önceki akşam 18:00'de hatırlatır. */
+export const buildNoteCalendar = (n: NoteLike) => wrap(noteEvent(n))
+export const buildNotesCalendar = (list: NoteLike[]) => wrap(list.flatMap(noteEvent))
+
+/** Özel günler için sabit takvim; yayına derleme sırasında yazılır, iPhone'a abonelik olarak eklenir. */
+export const wrapCalendar = (events: string[], name: string) =>
+  ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Birlikte//TR', `X-WR-CALNAME:${name}`, ...events, 'END:VCALENDAR'].join('\r\n')

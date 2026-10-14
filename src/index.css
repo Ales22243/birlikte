@@ -1094,3 +1094,10 @@ button {
 .reminder-line b {
   color: var(--gold);
 }
+
+.small-note {
+  font-size: 0.8125rem;
+}
+a.btn {
+  text-decoration: none;
+}

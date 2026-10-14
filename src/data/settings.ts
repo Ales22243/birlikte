@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { DEFAULT_SETTINGS } from '../lib/defaults'
 
 export interface Settings {
   a: string
@@ -8,8 +9,7 @@ export interface Settings {
 
 const KEY = 'birlikte:v1'
 
-/** Kayıtlı bilgi yoksa uygulama bunlarla açılır. */
-export const DEFAULT_SETTINGS: Settings = { a: 'Adem', b: 'Sena', start: '2025-01-10' }
+
 const subs = new Set<() => void>()
 let cache: Settings | null | undefined
 

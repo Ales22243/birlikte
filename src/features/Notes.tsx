@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import type { Note } from '../data/db'
 import { addNote, deleteNote, updateNote, useNotes, type NoteInput } from '../data/notes'
-import { buildNoteCalendar, downloadCalendar } from '../lib/ics'
+import { buildNoteCalendar, buildNotesCalendar } from '../lib/ics'
+import { downloadCalendar } from '../lib/download'
 import { askPermission, canNotify } from '../lib/notify'
 import { daysBetween, formatLong, formatWeekday, parseISO, toISO } from '../lib/time'
 import { useNow } from '../lib/useNow'
@@ -85,6 +86,11 @@ export function Notes() {
     setMsg('Takvim dosyası indirildi. Açıp "Takvime ekle"ye dokunun; telefon o gün ve saatte bildirim gösterir.')
   }
 
+  const remindAll = () => {
+    downloadCalendar(buildNotesCalendar(upcoming), 'birlikte-notlar.ics')
+    setMsg(`${upcoming.length} not takvim dosyasına yazıldı. Dosyayı açıp "Tümünü ekle"ye dokunun.`)
+  }
+
   const row = (n: Note, isPast = false) => (
     <li key={n.id} className={`note-row${left(n) === 0 ? ' today' : ''}`}>
       <div className="note-main">
@@ -158,6 +164,13 @@ export function Notes() {
           <p>Henüz not yok.</p>
           <p className="muted">Doğum günü, buluşma ya da bir sürpriz: tarihini yazın, zamanı gelince hatırlatalım.</p>
         </div>
+      )}
+
+      {upcoming.length > 0 && (
+        <button type="button" className="btn ghost wide" onClick={remindAll}>
+          <IconBell />
+          Tüm notları iPhone takvimine ekle
+        </button>
       )}
 
       {upcoming.length > 0 && <ul className="notes">{upcoming.map((n) => row(n))}</ul>}

@@ -3,7 +3,8 @@ import { inviteLink, saveSettings, type Settings } from '../data/settings'
 import { exportBackup, importBackup } from '../data/photos'
 import { THEMES, savePrefs, usePrefs, type HomeStyle } from '../data/prefs'
 import { buildMilestones, daysBetween, parseISO } from '../lib/time'
-import { buildCalendar, downloadCalendar } from '../lib/ics'
+import { buildCalendar } from '../lib/ics'
+import { downloadCalendar } from '../lib/download'
 import { addSongs, deleteSong, useSongs } from '../data/songs'
 import { IconShare, IconTrash } from '../ui/icons'
 import { SettingsForm } from './Setup'
@@ -134,6 +135,10 @@ export function SettingsPage({ settings }: { settings: Settings }) {
         <button type="button" className="btn ghost" onClick={calendar}>
           Takvim dosyasını indir
         </button>
+        <a className="btn ghost" href={`webcal://${location.host}${location.pathname}ozel-gunler.ics`}>
+          iPhone takvimine abone ol
+        </a>
+        <p className="muted small-note">Abonelik, özel günleri takvimde kendiliğinden gösterir. Bildirim sesi için yukarıdaki dosyayı indirip eklemek daha güvenilirdir.</p>
       </div>
 
       <div className="card">
