@@ -954,3 +954,29 @@ button {
   --night: #170c22;
   color: var(--blush);
 }
+
+.songs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.songs li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 4px 4px 14px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--blush) 8%, transparent);
+}
+.songs span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.songs .icon-btn {
+  background: none;
+  flex: none;
+}

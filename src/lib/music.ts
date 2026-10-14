@@ -92,3 +92,39 @@ export function startFile(url: string, volume = 0.6): Player {
     },
   }
 }
+
+/** Seçilen şarkıları sırayla çalar, bitince başa döner. */
+export function startPlaylist(blobs: Blob[], volume = 0.7): Player {
+  const urls = blobs.map((b) => URL.createObjectURL(b))
+  const a = new Audio()
+  let i = 0
+  let stopped = false
+  const load = () => {
+    a.src = urls[i % urls.length]
+    void a.play().catch(() => {})
+  }
+  a.volume = 0
+  a.addEventListener('ended', () => {
+    i++
+    if (!stopped) load()
+  })
+  load()
+  const up = setInterval(() => {
+    a.volume = Math.min(volume, a.volume + 0.05)
+    if (a.volume >= volume) clearInterval(up)
+  }, 100)
+  return {
+    stop() {
+      stopped = true
+      clearInterval(up)
+      const down = setInterval(() => {
+        a.volume = Math.max(0, a.volume - 0.1)
+        if (a.volume <= 0) {
+          clearInterval(down)
+          a.pause()
+          urls.forEach((u) => URL.revokeObjectURL(u))
+        }
+      }, 60)
+    },
+  }
+}

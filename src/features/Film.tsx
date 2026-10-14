@@ -3,7 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import type { PhotoView } from '../data/photos'
 import { savePrefs, usePrefs } from '../data/prefs'
 import { daysBetween, formatLong, parseISO } from '../lib/time'
-import { startMusicBox, type Player } from '../lib/music'
+import { db } from '../data/db'
+import { startMusicBox, startPlaylist, type Player } from '../lib/music'
 import { KenBurns, Polaroid } from '../ui/KenBurns'
 import { HeartShape, IconClose } from '../ui/icons'
 
@@ -58,12 +59,20 @@ export function Film({ photos, start, onClose }: { photos: PhotoView[]; start: s
   useEffect(() => {
     if (!music) return
     let p: Player | undefined
-    try {
-      p = startMusicBox()
-    } catch {
-      // ses açılamazsa film sessiz devam eder
+    let cancelled = false
+    db.songs
+      .toArray()
+      .then((songs) => {
+        if (cancelled) return
+        p = songs.length ? startPlaylist(songs.map((x) => x.blob)) : startMusicBox()
+      })
+      .catch(() => {
+        // ses açılamazsa film sessiz devam eder
+      })
+    return () => {
+      cancelled = true
+      p?.stop()
     }
-    return () => p?.stop()
   }, [music])
 
   useEffect(() => {
