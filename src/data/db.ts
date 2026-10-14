@@ -4,6 +4,8 @@ export interface Photo {
   id: number
   blob: Blob
   thumb?: Blob
+  /** Küçük sürüm üretilemediyse true; bir daha denenmez. */
+  thumbFailed?: boolean
   takenAt: string
   caption: string
   addedAt: number

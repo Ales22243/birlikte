@@ -1340,3 +1340,20 @@ a.btn {
   color: var(--muted);
   font-size: 0.875rem;
 }
+
+.tile-bad {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.viewer-fail {
+  position: absolute;
+  top: 40%;
+  left: 24px;
+  right: 24px;
+  text-align: center;
+  color: var(--gold);
+  z-index: 2;
+}

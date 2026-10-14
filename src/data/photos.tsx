@@ -36,6 +36,10 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
     setViews(
       rows.map((r) => {
         let u = cache.current.get(r.id)
+        if (u && r.thumb && !u.thumbBlob) {
+          u = { url: u.url, thumbUrl: URL.createObjectURL(r.thumb), thumbBlob: r.thumb }
+          cache.current.set(r.id, u)
+        }
         if (!u) {
           const url = URL.createObjectURL(r.blob)
           u = r.thumb ? { url, thumbUrl: URL.createObjectURL(r.thumb), thumbBlob: r.thumb } : { url, thumbUrl: url }
@@ -44,6 +48,27 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
         return { ...r, url: u.url, thumbUrl: u.thumbUrl }
       }),
     )
+  }, [rows])
+
+  // Eski fotoğrafların küçük sürümünü arka planda, birer birer üretir; ızgara hafifler.
+  const migrating = useRef(false)
+  useEffect(() => {
+    if (!rows || migrating.current) return
+    const todo = rows.filter((r) => !r.thumb && !r.thumbFailed)
+    if (!todo.length) return
+    migrating.current = true
+    void (async () => {
+      for (const r of todo) {
+        try {
+          const { thumb } = await prepare(r.blob)
+          await db.photos.update(r.id, { thumb })
+        } catch {
+          await db.photos.update(r.id, { thumbFailed: true })
+        }
+        await breathe()
+      }
+      migrating.current = false
+    })()
   }, [rows])
 
   useEffect(() => {
@@ -69,23 +94,29 @@ interface Decoded {
   release: () => void
 }
 
-/** Dosyayı çözer. Önce hızlı yolu dener, olmazsa <img> ile çözer (eski Safari sürümleri için). */
+/** Dosyayı çözer: önce doğrudan, olmazsa küçülterek çözerek, o da olmazsa <img> ile (iPhone'un bellek sınırları için). */
 async function decode(file: Blob): Promise<Decoded> {
+  const fromBitmap = (bmp: ImageBitmap): Decoded => ({ source: bmp, width: bmp.width, height: bmp.height, release: () => bmp.close() })
   try {
-    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
-    return { source: bmp, width: bmp.width, height: bmp.height, release: () => bmp.close() }
+    return fromBitmap(await createImageBitmap(file, { imageOrientation: 'from-image' }))
   } catch {
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.src = url
-    try {
-      await img.decode()
-    } catch (e) {
-      URL.revokeObjectURL(url)
-      throw e
-    }
-    return { source: img, width: img.naturalWidth, height: img.naturalHeight, release: () => URL.revokeObjectURL(url) }
+    // çok büyük (ör. 48 MP) fotoğraflar tam çözülemeyebilir; çözerken küçült
   }
+  try {
+    return fromBitmap(await createImageBitmap(file, { imageOrientation: 'from-image', resizeWidth: 2000, resizeQuality: 'medium' }))
+  } catch {
+    // son çare: tarayıcının kendi <img> çözücüsü
+  }
+  const url = URL.createObjectURL(file)
+  const img = new Image()
+  img.src = url
+  try {
+    await img.decode()
+  } catch (e) {
+    URL.revokeObjectURL(url)
+    throw e
+  }
+  return { source: img, width: img.naturalWidth, height: img.naturalHeight, release: () => URL.revokeObjectURL(url) }
 }
 
 function render(d: Decoded, max: number, quality: number): Promise<Blob> {
@@ -143,8 +174,8 @@ export async function addPhotos(files: FileList | File[], onProgress?: (done: nu
         addedAt: Date.now() + i,
       } as Photo)
       added++
-    } catch {
-      failed.push(f.name)
+    } catch (e) {
+      failed.push(`${f.name || 'adsız'} (${(e as Error).name || 'hata'}, ${Math.round(f.size / 1e6)} MB, ${f.type || 'tür yok'})`)
     }
     onProgress?.(i + 1, list.length)
     await breathe()

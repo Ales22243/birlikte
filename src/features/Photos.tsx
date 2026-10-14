@@ -6,10 +6,20 @@ import { daysBetween, formatLong, parseISO } from '../lib/time'
 import { IconClose, IconPhotos, IconPlay, IconPlus, IconTrash } from '../ui/icons'
 import { Film } from './Film'
 
+function TileImage({ src }: { src: string }) {
+  const [bad, setBad] = useState(false)
+  return bad ? (
+    <span className="tile-bad">Açılamadı</span>
+  ) : (
+    <img src={src} alt="" loading="lazy" decoding="async" onError={() => setBad(true)} />
+  )
+}
+
 function Viewer({ photos, index, start, onIndex, onClose }: { photos: PhotoView[]; index: number; start: string; onIndex: (i: number) => void; onClose: () => void }) {
   const p = photos[index]
   const [caption, setCaption] = useState(p.caption)
   const [armed, setArmed] = useState(false)
+  const [failed, setFailed] = useState<number | null>(null)
   useEffect(() => {
     setCaption(p.caption)
     setArmed(false)
@@ -28,8 +38,14 @@ function Viewer({ photos, index, start, onIndex, onClose }: { photos: PhotoView[
         </button>
       </div>
 
+      {failed === p.id && (
+        <p className="viewer-fail" role="alert">
+          Bu fotoğraf açılamadı. Silip yeniden ekleyebilirsiniz.
+        </p>
+      )}
       <AnimatePresence mode="wait" initial={false}>
         <motion.img
+          onError={() => setFailed(p.id)}
           key={p.id}
           src={p.url}
           alt={p.caption || formatLong(parseISO(p.takenAt))}
@@ -111,7 +127,7 @@ export function Photos({ settings }: { settings: Settings }) {
     setProgress(null)
     setNote(
       failed.length
-        ? `${added} fotoğraf eklendi, ${failed.length} tanesi okunamadı (${failed.slice(0, 2).join(', ')}${failed.length > 2 ? '...' : ''}). JPG, PNG veya HEIC olmalı.`
+        ? `${added} fotoğraf eklendi, ${failed.length} tanesi okunamadı — örnek: ${failed[0]}`
         : `${added} fotoğraf eklendi.`,
     )
   }
@@ -141,7 +157,7 @@ export function Photos({ settings }: { settings: Settings }) {
       {progress && (
         <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={progress[1]} aria-valuenow={progress[0]} aria-label="Fotoğraflar ekleniyor">
           <i style={{ transform: `scaleX(${progress[1] ? progress[0] / progress[1] : 0})` }} />
-          <span>Fotoğraflar telefonda hazırlanıyor, ekranı kapatmayın.</span>
+          <span>Fotoğraflar hazırlanıyor, ekranı kapatmayın. iCloud'daki eski fotoğrafların önce telefona inmesi biraz sürebilir.</span>
         </div>
       )}
       {note && <p className="note" role="status">{note}</p>}
@@ -161,7 +177,7 @@ export function Photos({ settings }: { settings: Settings }) {
           return (
             <li key={p.id}>
               <button type="button" className="tile" onClick={() => setOpen(i)} aria-label={p.caption || formatLong(parseISO(p.takenAt))}>
-                <img src={p.thumbUrl} alt="" loading="lazy" decoding="async" />
+                <TileImage src={p.thumbUrl} />
                 {d >= 1 && <span className="chip">{d}. gün</span>}
               </button>
             </li>
