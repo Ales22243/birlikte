@@ -14,9 +14,20 @@ export interface Song {
   blob: Blob
 }
 
+export interface Note {
+  id: number
+  title: string
+  text: string
+  date: string
+  time: string
+  createdAt: number
+}
+
 export const db = new Dexie('birlikte') as Dexie & {
   photos: EntityTable<Photo, 'id'>
   songs: EntityTable<Song, 'id'>
+  notes: EntityTable<Note, 'id'>
 }
 db.version(1).stores({ photos: '++id, takenAt' })
 db.version(2).stores({ photos: '++id, takenAt', songs: '++id' })
+db.version(3).stores({ photos: '++id, takenAt', songs: '++id', notes: '++id, date' })

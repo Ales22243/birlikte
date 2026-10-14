@@ -56,3 +56,17 @@ export function HeartShape({ size = 24 }: { size?: number }) {
     </svg>
   )
 }
+
+export const IconNote = make(
+  <>
+    <path d="M6 3.5h9.5L19 7v13.5H6z" />
+    <path d="M15 3.5V7.5h4M9 12h6M9 15.5h6" />
+  </>,
+)
+export const IconBell = make(
+  <>
+    <path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 1.5h-15z" />
+    <path d="M10 21h4" />
+  </>,
+)
+export const IconEdit = make(<path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />)

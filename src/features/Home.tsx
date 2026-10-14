@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, animate, motion, useReducedMotion } from 'framer-motion'
 import type { Settings } from '../data/settings'
 import { usePrefs } from '../data/prefs'
+import { useNotes } from '../data/notes'
 import { usePhotos } from '../data/photos'
 import { addDays, buildMilestones, daysBetween, parseISO, ymd, ymdText } from '../lib/time'
 import { useNow } from '../lib/useNow'
 import { Burst, makeBurst, type Particle } from '../ui/Burst'
 import { KenBurns } from '../ui/KenBurns'
-import { HeartShape } from '../ui/icons'
+import { HeartShape, IconBell } from '../ui/icons'
 
 const SLIDE_SECONDS = 7
 
@@ -48,9 +49,10 @@ function Elapsed({ start }: { start: Date }) {
   )
 }
 
-export function Home({ settings }: { settings: Settings }) {
+export function Home({ settings, onOpenNotes }: { settings: Settings; onOpenNotes: () => void }) {
   const photos = usePhotos()
   const { style } = usePrefs()
+  const notes = useNotes()
   const now = useNow(60_000)
   const start = useMemo(() => parseISO(settings.start), [settings.start])
   const passed = Math.max(0, daysBetween(start, now))
@@ -99,6 +101,9 @@ export function Home({ settings }: { settings: Settings }) {
     return () => clearTimeout(t)
   }, [todayMilestone?.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const soon = (notes ?? [])
+    .filter((n) => daysBetween(now, parseISO(n.date)) >= 0 && daysBetween(now, parseISO(n.date)) <= 1)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
   const count = ymd(start, now)
   const dayNo = passed + 1
 
@@ -172,6 +177,19 @@ export function Home({ settings }: { settings: Settings }) {
         </div>
 
         <div className="foot">
+          {soon.length > 0 && (
+            <button type="button" className="reminder" onClick={onOpenNotes}>
+              <IconBell />
+              <span>
+                {soon.slice(0, 2).map((n) => (
+                  <span key={n.id} className="reminder-line">
+                    <b>{daysBetween(now, parseISO(n.date)) === 0 ? 'Bugün' : 'Yarın'}{n.time && ` ${n.time}`}:</b> {n.title}
+                  </span>
+                ))}
+                {soon.length > 2 && <span className="reminder-line">ve {soon.length - 2} not daha</span>}
+              </span>
+            </button>
+          )}
           <Elapsed start={start} />
           {target && (
             <div className="next">
