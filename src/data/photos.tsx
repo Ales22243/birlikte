@@ -73,10 +73,20 @@ export async function exportBackup(settings: unknown): Promise<number> {
   const photos = await Promise.all(
     rows.map(async (p) => ({ takenAt: p.takenAt, caption: p.caption, addedAt: p.addedAt, data: await toDataUrl(p.blob) })),
   )
-  const file = new Blob([JSON.stringify({ app: 'birlikte', v: 1, settings, photos })], { type: 'application/json' })
+  const name = `birlikte-yedek-${toISO(new Date())}.json`
+  const file = new File([JSON.stringify({ app: 'birlikte', v: 1, settings, photos })], name, { type: 'application/json' })
+  // Telefonlarda paylaşım menüsünü (WhatsApp, Dosyalar, AirDrop) açar; olmazsa dosya olarak indirir.
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Birlikte yedek' })
+      return photos.length
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return photos.length
+    }
+  }
   const a = document.createElement('a')
   a.href = URL.createObjectURL(file)
-  a.download = `birlikte-yedek-${toISO(new Date())}.json`
+  a.download = name
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 5000)
   return photos.length
