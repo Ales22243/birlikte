@@ -104,12 +104,13 @@ button {
 
 /* ---------- kabuk ---------- */
 .app {
-  height: 100dvh;
+  /* 100dvh iPhone ana ekran uygulamasında ilk açılışta kısa kalıp altta boşluk bırakıyordu: kabuk ekrana sabitlendi */
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
   max-width: 520px;
   margin: 0 auto;
-  position: relative;
   background: var(--night);
   overflow: hidden;
 }
@@ -982,6 +983,65 @@ button {
 .songs .icon-btn {
   background: none;
   flex: none;
+}
+.film-wrap {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--line);
+  aspect-ratio: 16 / 9;
+}
+.film-player {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+.film-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+.film-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.film-item {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--blush) 6%, transparent);
+  text-align: left;
+}
+.film-item span {
+  flex: 1;
+  font-weight: 500;
+}
+.film-item small {
+  color: var(--muted);
+}
+.film-item svg {
+  color: var(--rose);
+  flex: none;
+}
+.film-item[aria-current='true'] {
+  border-color: var(--rose);
+  background: color-mix(in srgb, var(--rose) 16%, transparent);
 }
 .clip-btns {
   display: flex;

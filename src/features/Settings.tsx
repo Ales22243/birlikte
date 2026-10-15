@@ -5,16 +5,13 @@ import { THEMES, savePrefs, usePrefs, type HomeStyle } from '../data/prefs'
 import { buildMilestones, daysBetween, parseISO } from '../lib/time'
 import { buildCalendar } from '../lib/ics'
 import { downloadCalendar } from '../lib/download'
-import { addSongs, deleteSong, useSongs } from '../data/songs'
-import { IconShare, IconTrash } from '../ui/icons'
+import { IconShare } from '../ui/icons'
 import { SettingsForm } from './Setup'
 
 export function SettingsPage({ settings }: { settings: Settings }) {
   const [msg, setMsg] = useState('')
   const file = useRef<HTMLInputElement>(null)
   const prefs = usePrefs()
-  const songs = useSongs()
-  const songInput = useRef<HTMLInputElement>(null)
 
   const share = async () => {
     const url = inviteLink(settings)
@@ -111,39 +108,6 @@ export function SettingsPage({ settings }: { settings: Settings }) {
         </button>
       </div>
 
-      <div className="card wide">
-        <h3>Anı filmi şarkıları</h3>
-        <p className="muted">Telefonunuzdaki sevdiğiniz şarkıları seçin; anı filminde sırayla çalar. Şarkılar yalnızca bu telefonda kalır. Hiç şarkı seçmezseniz hazır müzik kutusu melodisi çalar.</p>
-        {songs && songs.length > 0 && (
-          <ul className="songs">
-            {songs.map((x) => (
-              <li key={x.id}>
-                <span>{x.name}</span>
-                <button type="button" className="icon-btn" aria-label={`${x.name} şarkısını kaldır`} onClick={() => deleteSong(x.id)}>
-                  <IconTrash />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="row">
-          <button type="button" className="btn ghost" onClick={() => songInput.current?.click()}>
-            Şarkı ekle
-          </button>
-        </div>
-        <input
-          ref={songInput}
-          type="file"
-          accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg"
-          multiple
-          hidden
-          onChange={async (e) => {
-            const n = await addSongs(e.target.files ?? [])
-            setMsg(n ? `${n} şarkı eklendi.` : 'Ses dosyası seçilmedi.')
-            e.target.value = ''
-          }}
-        />
-      </div>
 
       <div className="card">
         <h3>Özel gün hatırlatıcıları</h3>
