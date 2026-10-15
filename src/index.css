@@ -931,6 +931,9 @@ button {
   border-radius: 99px;
   padding: 3px;
 }
+.seg.seg-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
 .seg button {
   min-height: 40px;
   border: 0;
@@ -979,6 +982,14 @@ button {
 .songs .icon-btn {
   background: none;
   flex: none;
+}
+.clip-btns {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+.clip-btns .icon-btn:disabled {
+  opacity: 0.3;
 }
 
 /* ---------- notlar ---------- */

@@ -10,7 +10,11 @@ Yayın komutları (her seferinde): `npm run build` → `git add -A; git commit; 
 ## Animasyon sekmesi (src/features/Anim.tsx)
 İki tür: **Fotoğraflı film** (src/lib/animator.ts) ve **Çizgi film** (src/lib/cartoon.ts). İkisi de `FrameSource` arayüzüyle (duration, prepare, prefetch, draw(ctx,t), dispose) 720×1280 2D tuvale çizilir; Anim.tsx bunu canvas.captureStream + MediaRecorder ile gerçek zamanlı kaydeder (iPhone'da mp4). Müzik: src/lib/music.ts (WebAudio müzik kutusu).
 
-## ŞU AN YAPILAN İŞ: çizgi filmi gerçek 3D (Pixar tarzı) yapmak
+## Videolarım (16 Ekim 2026)
+Kullanıcı kodla çizilen karakterleri beğenmedi; yüz benzerliği için yapay zekâ videosu (Kling) üretti. Animasyon sekmesine üçüncü tür "Videolarım" eklendi: kullanıcı kendi videolarını ekler (IndexedDB `clips` tablosu, yalnızca cihazda; `src/data/clips.ts`), sıralar, `src/lib/clipfilm.ts` bunları açılış kartı + geçişli klipler + bitiş kartıyla 720x1280 dikey filme çevirir. Görünüm: "Tamamı görünsün" (bulanık arka plan, üstte isimler, altta gün) / "Ekranı doldur". Ses: videonun kendi sesi (kayıtta MediaElementSource ile), müzik kutusu, şarkılar ya da sessiz. Kullanıcının videoları ASLA depoya/yayına konmaz.
+Not: Claude tarayıcı panelinde "Video oluştur" kaydı panel görünürlüğü değiştiği için hemen durur (visibilitychange); kayıt hattı konsoldan ClipFilm + MediaRecorder ile doğrulandı.
+
+## Önceki iş: çizgi filmi gerçek 3D (Pixar tarzı) yapmak
 İstek: referans = `Yeni klasör (6)` içindeki ekran görüntüsü (3D CGI, sıcak altın ışık, bokeh, kenar ışığı). Karakter yüzleri: `Yeni klasör (5)` içinde kalan tek fotoğraf (arabada selfie): Adem = yuvarlak dolgun yüz, geniş alın, M saç çizgisi (şakaklar geride), kısa koyu kahve saç, kalın düz koyu kaşlar, açık kahve-yeşilimsi göz, kısa kirli sakal, pembe yanaklar, açık gri uzun kollu tişört + koyu kot (fotoğraftaki gibi; 3D'de güncellendi), dolgun koyu sakal. Sena = oval yüz, ortadan ayrık, omuzdan uzun düz saç (bal sarısı; köklerde koyu, uçlarda açık), kahve gözler, çiller, altın küpe, lacivert bluz + bej etek (3D'de güncellendi).
 Hikâye (mevcut 2D sürümdeki gibi, 47 sn): 1) şezlongda gün batımı (arkadan, sonra birbirine dönüp gülerler, "Yürüyelim mi?") 2) el ele yürüyüş, birbirine bakıp mutlu 3) salaş balıkçıda balık dürüm, Sena'nın burnunda sos, kahkaha, "Şerefe!" 4) kapanış. Filmvari, kesintisiz geçişler.
 
@@ -19,7 +23,7 @@ Hikâye (mevcut 2D sürümdeki gibi, 47 sn): 1) şezlongda gün batımı (arkada
 - Konuşma balonları 3D başın ekran konumuna göre yerleşir (`Cartoon.head()` → `World.headScreen()`), kadeh parıltısı `World.clink`.
 - Gülerken göz: `happy` ∩ çizgisi (göz küresi gizlenir). Gözyaşları kaldırıldı. Sena otururken etek küçülür, uyluk elbise rengine döner.
 - Masaüstü ölçüm (Intel UHD): kare ~21 ms, geçişlerde ~45 ms. 47 sn MP4 kaydı denendi (23 MB) ve çalıştı. iPhone'da denenmedi.
-- `src/lib/c3d/dev.ts` geçici test dosyası (git'e eklenmedi, `selfie()` ve `frame()`); işi biten silebilir. Sahne ayarı için geçici olarak `window.__w3 = this.w3` ekleyip konsoldan `__w3.render(kind,t)` + kamera ile yakın plan çekmek pratik.
+- `src/lib/c3d/dev.ts` artık yok (silindi). Sahne ayarı için geçici olarak `window.__w3 = this.w3` ekleyip konsoldan `__w3.render(kind,t)` + kamera ile yakın plan çekmek pratik.
 - Olası iyileştirmeler: eklem yerlerinde "manken" görüntüsü (kapsül uzuvlar), Adem'in pantolon rengi ten rengine yakın, iPhone'da yavaşsa `Stage` gölgeyi kapatma / pikselOranı 0.75 seçeneği.
 
 ### Eski durum (ilk oturum)

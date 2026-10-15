@@ -17,6 +17,15 @@ export interface Song {
   blob: Blob
 }
 
+export interface Clip {
+  id: number
+  name: string
+  blob: Blob
+  /** Saniye; eklenirken okunur. */
+  duration: number
+  order: number
+}
+
 export interface Note {
   id: number
   title: string
@@ -30,7 +39,9 @@ export const db = new Dexie('birlikte') as Dexie & {
   photos: EntityTable<Photo, 'id'>
   songs: EntityTable<Song, 'id'>
   notes: EntityTable<Note, 'id'>
+  clips: EntityTable<Clip, 'id'>
 }
 db.version(1).stores({ photos: '++id, takenAt' })
 db.version(2).stores({ photos: '++id, takenAt', songs: '++id' })
 db.version(3).stores({ photos: '++id, takenAt', songs: '++id', notes: '++id, date' })
+db.version(4).stores({ photos: '++id, takenAt', songs: '++id', notes: '++id, date', clips: '++id, order' })

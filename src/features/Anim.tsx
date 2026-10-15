@@ -2,14 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Settings } from '../data/settings'
 import { usePhotos } from '../data/photos'
 import { useSongs } from '../data/songs'
+import { addClips, deleteClip, moveClip, useClips } from '../data/clips'
 import { Animator, H, W, pickRecorderFormat, planFor, type AnimStyle, type FrameSource, type Length } from '../lib/animator'
 import { Cartoon, CARTOON_SECONDS } from '../lib/cartoon'
+import { ClipFilm, type ClipFit } from '../lib/clipfilm'
 import { startMusicBox, startPlaylist, startSongsInto, type Player } from '../lib/music'
-import { IconPlay } from '../ui/icons'
+import { IconPlay, IconTrash } from '../ui/icons'
 
 type Phase = 'idle' | 'loading' | 'preview' | 'recording' | 'done'
-type MusicChoice = 'kutu' | 'sarki' | 'sessiz'
-type Kind = 'foto' | 'cizgi'
+type MusicChoice = 'kutu' | 'sarki' | 'sessiz' | 'klip'
+type Kind = 'foto' | 'cizgi' | 'klip'
 
 const COUNTS = [5, 10, 20, 0] as const
 const LENGTHS: { id: Length; label: string }[] = [
@@ -37,6 +39,9 @@ async function fontsReady() {
 export function Anim({ settings }: { settings: Settings }) {
   const photos = usePhotos()
   const songs = useSongs()
+  const clips = useClips()
+  const clipInput = useRef<HTMLInputElement>(null)
+  const [fit, setFit] = useState<ClipFit>('sigdir')
   const canvas = useRef<HTMLCanvasElement>(null)
   const [kind, setKind] = useState<Kind>('cizgi')
   const [count, setCount] = useState<(typeof COUNTS)[number]>(10)
@@ -69,7 +74,8 @@ export function Anim({ settings }: { settings: Settings }) {
     return list.slice(0, plan.count).sort((x, y) => x.takenAt.localeCompare(y.takenAt) || x.id - y.id)
   }, [photos, length, random, seed, plan.count])
 
-  const estimate = kind === 'cizgi' ? CARTOON_SECONDS : chosen.length ? plan.timing.intro + chosen.length * plan.timing.scene + plan.timing.outro : 0
+  const clipSeconds = (clips ?? []).reduce((n, c) => n + c.duration - 0.7, 0)
+  const estimate = kind === 'klip' ? (clips?.length ? 2.3 + clipSeconds + 3 : 0) : kind === 'cizgi' ? CARTOON_SECONDS : chosen.length ? plan.timing.intro + chosen.length * plan.timing.scene + plan.timing.outro : 0
 
   // Boşta duran tuvale kapak karesi çiz
   useEffect(() => {
@@ -77,18 +83,25 @@ export function Anim({ settings }: { settings: Settings }) {
     let live = true
     void fontsReady().then(async () => {
       const a: FrameSource =
-        kind === 'cizgi'
+        kind === 'klip'
+          ? new ClipFilm({ clips: [], a: settings.a, b: settings.b, start: settings.start, fit })
+          : kind === 'cizgi'
           ? new Cartoon({ a: settings.a, b: settings.b, start: settings.start })
           : new Animator({ photos: [], a: settings.a, b: settings.b, start: settings.start, style: 'karisik' })
       if (kind === 'cizgi') await a.prepare()
       const c = canvas.current
       if (!live || !c) return
-      a.draw(c.getContext('2d')!, kind === 'cizgi' ? 6.4 : 2.9)
+      a.draw(c.getContext('2d')!, kind === 'cizgi' ? 6.4 : kind === 'klip' ? 1.8 : 2.9)
     })
     return () => {
       live = false
     }
-  }, [phase, settings, kind])
+  }, [phase, settings, kind, fit])
+
+  // Videolarım'da varsayılan ses videonun kendi sesi; diğer türlerde bu seçenek yok
+  useEffect(() => {
+    setMusic((m) => (kind === 'klip' ? (m === 'kutu' ? 'klip' : m) : m === 'klip' ? 'kutu' : m))
+  }, [kind])
 
   useEffect(() => {
     return () => {
@@ -99,7 +112,7 @@ export function Anim({ settings }: { settings: Settings }) {
 
   const run = async (mode: 'preview' | 'record') => {
     const c = canvas.current
-    if (!c || (kind === 'foto' && !chosen.length)) return
+    if (!c || (kind === 'foto' && !chosen.length) || (kind === 'klip' && !clips?.length)) return
     stopRef.current?.()
     if (video) {
       URL.revokeObjectURL(video.url)
@@ -109,8 +122,10 @@ export function Anim({ settings }: { settings: Settings }) {
     setPhase('loading')
     await fontsReady()
 
+    const film = kind === 'klip' ? new ClipFilm({ clips: clips!.map((x) => x.blob), a: settings.a, b: settings.b, start: settings.start, fit }) : null
     const animator: FrameSource =
-      kind === 'cizgi'
+      film ??
+      (kind === 'cizgi'
         ? new Cartoon({ a: settings.a, b: settings.b, start: settings.start })
         : new Animator({
             photos: chosen.map((p) => ({ blob: p.blob, takenAt: p.takenAt, caption: p.caption })),
@@ -119,7 +134,7 @@ export function Anim({ settings }: { settings: Settings }) {
             start: settings.start,
             style,
             timing: plan.timing,
-          })
+          }))
     await animator.prepare()
     const ctx = c.getContext('2d')!
     const duration = animator.duration
@@ -143,8 +158,10 @@ export function Anim({ settings }: { settings: Settings }) {
           actx = new AudioContext()
           await actx.resume()
           const dest = actx.createMediaStreamDestination()
-          player =
-            music === 'sarki' && songBlobs.length
+          if (film && music === 'klip') film.setAudio({ ctx: actx, out: dest })
+          else
+            player =
+              music === 'sarki' && songBlobs.length
               ? await startSongsInto(songBlobs, { ctx: actx, out: dest }, duration)
               : startMusicBox(0.6, { ctx: actx, out: dest })
           dest.stream.getAudioTracks().forEach((tr) => stream!.addTrack(tr))
@@ -157,6 +174,8 @@ export function Anim({ settings }: { settings: Settings }) {
         } catch {
           // ekran kilidi engellenemezse kullanıcı uyarısı yeterli
         }
+      } else if (film && music === 'klip') {
+        film.setAudio('native')
       } else if (music !== 'sessiz') {
         player = music === 'sarki' && songBlobs.length ? startPlaylist(songBlobs) : startMusicBox()
       }
@@ -231,7 +250,7 @@ export function Anim({ settings }: { settings: Settings }) {
 
   const save = async () => {
     if (!video) return
-    const file = new File([video.blob], `birlikte-anilar.${video.ext}`, { type: video.blob.type })
+    const file = new File([video.blob], `birlikte-${kind === 'klip' ? 'film' : 'anilar'}.${video.ext}`, { type: video.blob.type })
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: 'Birlikte anılarımız' })
@@ -248,6 +267,7 @@ export function Anim({ settings }: { settings: Settings }) {
 
   const busy = phase === 'loading' || phase === 'preview' || phase === 'recording'
   const empty = kind === 'foto' && photos && photos.length === 0
+  const noClips = kind === 'klip' && !clips?.length
 
   return (
     <section className="page">
@@ -276,12 +296,15 @@ export function Anim({ settings }: { settings: Settings }) {
       {empty && <p className="muted">Fotoğraflı film için önce Anılar'a fotoğraf ekleyin.</p>}
 
       {phase !== 'done' && (
-        <div className="seg" role="radiogroup" aria-label="Animasyon türü">
+        <div className="seg seg-3" role="radiogroup" aria-label="Animasyon türü">
           <button type="button" role="radio" aria-checked={kind === 'cizgi'} disabled={busy} onClick={() => setKind('cizgi')}>
             Çizgi film
           </button>
           <button type="button" role="radio" aria-checked={kind === 'foto'} disabled={busy} onClick={() => setKind('foto')}>
             Fotoğraflı film
+          </button>
+          <button type="button" role="radio" aria-checked={kind === 'klip'} disabled={busy} onClick={() => setKind('klip')}>
+            Videolarım
           </button>
         </div>
       )}
@@ -299,6 +322,65 @@ export function Anim({ settings }: { settings: Settings }) {
         !empty && (
           <>
             <div className="card wide opts">
+              {kind === 'klip' && (
+                <>
+                  <fieldset>
+                    <legend>Videolar (sırayla oynar)</legend>
+                    {clips && clips.length > 0 ? (
+                      <ul className="songs">
+                        {clips.map((x, i) => (
+                          <li key={x.id}>
+                            <span>
+                              {i + 1}. {x.name} · {Math.round(x.duration)} sn
+                            </span>
+                            <span className="clip-btns">
+                              <button type="button" className="icon-btn" aria-label="Yukarı taşı" disabled={busy || i === 0} onClick={() => moveClip(x.id, -1)}>
+                                ↑
+                              </button>
+                              <button type="button" className="icon-btn" aria-label="Aşağı taşı" disabled={busy || i === clips.length - 1} onClick={() => moveClip(x.id, 1)}>
+                                ↓
+                              </button>
+                              <button type="button" className="icon-btn" aria-label={`${x.name} videosunu kaldır`} disabled={busy} onClick={() => deleteClip(x.id)}>
+                                <IconTrash />
+                              </button>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <small className="muted">Yapay zekâ ile ürettiğiniz ya da çektiğiniz videoları ekleyin. Videolar yalnızca bu cihazda kalır.</small>
+                    )}
+                    <div className="row">
+                      <button type="button" className="btn ghost" disabled={busy} onClick={() => clipInput.current?.click()}>
+                        Video ekle
+                      </button>
+                    </div>
+                    <input
+                      ref={clipInput}
+                      type="file"
+                      accept="video/*,.mp4,.mov,.m4v"
+                      multiple
+                      hidden
+                      onChange={async (e) => {
+                        const n = await addClips(e.target.files ?? [])
+                        setMsg(n ? `${n} video eklendi.` : 'Video okunamadı.')
+                        e.target.value = ''
+                      }}
+                    />
+                  </fieldset>
+                  <fieldset>
+                    <legend>Görünüm</legend>
+                    <div className="seg" role="radiogroup">
+                      <button type="button" role="radio" aria-checked={fit === 'sigdir'} disabled={busy} onClick={() => setFit('sigdir')}>
+                        Tamamı görünsün
+                      </button>
+                      <button type="button" role="radio" aria-checked={fit === 'kirp'} disabled={busy} onClick={() => setFit('kirp')}>
+                        Ekranı doldur
+                      </button>
+                    </div>
+                  </fieldset>
+                </>
+              )}
               {kind === 'foto' && (
               <>
               <fieldset>
@@ -352,7 +434,12 @@ export function Anim({ settings }: { settings: Settings }) {
               )}
               <fieldset>
                 <legend>Müzik</legend>
-                <div className="seg3" role="radiogroup">
+                <div className={kind === 'klip' ? 'seg4' : 'seg3'} role="radiogroup">
+                  {kind === 'klip' && (
+                    <button type="button" role="radio" aria-checked={music === 'klip'} disabled={busy} onClick={() => setMusic('klip')}>
+                      Video sesi
+                    </button>
+                  )}
                   <button type="button" role="radio" aria-checked={music === 'kutu'} disabled={busy} onClick={() => setMusic('kutu')}>
                     Müzik kutusu
                   </button>
@@ -366,7 +453,11 @@ export function Anim({ settings }: { settings: Settings }) {
                 {!songs?.length && <small className="muted">Şarkılarım için Ayarlar'dan şarkı ekleyin.</small>}
               </fieldset>
               <p className="muted small-note">
-                {kind === 'cizgi'
+                {kind === 'klip'
+                  ? clips?.length
+                    ? `${clips.length} video · açılış ve bitiş kartıyla yaklaşık ${Math.round(estimate)} saniyelik dikey film.`
+                    : 'Henüz video eklenmedi.'
+                  : kind === 'cizgi'
                   ? `${settings.b} ve ${settings.a}: şezlongda gün batımı, el ele yürüyüş, balıkçıda dürüm ve kahkaha · yaklaşık ${Math.round(estimate)} saniye.`
                   : `${chosen.length} fotoğraf · yaklaşık ${Math.round(estimate)} saniyelik dikey video.`}
               </p>
@@ -379,11 +470,11 @@ export function Anim({ settings }: { settings: Settings }) {
                 </button>
               ) : (
                 <>
-                  <button type="button" className="btn ghost" disabled={kind === 'foto' && !chosen.length} onClick={() => run('preview')}>
+                  <button type="button" className="btn ghost" disabled={(kind === 'foto' && !chosen.length) || noClips} onClick={() => run('preview')}>
                     <IconPlay />
                     Önizle
                   </button>
-                  <button type="button" className="btn" disabled={(kind === 'foto' && !chosen.length) || !format} onClick={() => run('record')}>
+                  <button type="button" className="btn" disabled={(kind === 'foto' && !chosen.length) || noClips || !format} onClick={() => run('record')}>
                     Video oluştur
                   </button>
                 </>
