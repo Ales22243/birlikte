@@ -10,9 +10,15 @@ Yayın komutları (her seferinde): `npm run build` → `git add -A; git commit; 
 ## Animasyon sekmesi (src/features/Anim.tsx)
 İki tür: **Fotoğraflı film** (src/lib/animator.ts) ve **Çizgi film** (src/lib/cartoon.ts). İkisi de `FrameSource` arayüzüyle (duration, prepare, prefetch, draw(ctx,t), dispose) 720×1280 2D tuvale çizilir; Anim.tsx bunu canvas.captureStream + MediaRecorder ile gerçek zamanlı kaydeder (iPhone'da mp4). Müzik: src/lib/music.ts (WebAudio müzik kutusu).
 
-## Videolarım (16 Ekim 2026)
-Kullanıcı kodla çizilen karakterleri beğenmedi; yüz benzerliği için yapay zekâ videosu (Kling) üretti. Animasyon sekmesine üçüncü tür "Videolarım" eklendi: kullanıcı kendi videolarını ekler (IndexedDB `clips` tablosu, yalnızca cihazda; `src/data/clips.ts`), sıralar, `src/lib/clipfilm.ts` bunları açılış kartı + geçişli klipler + bitiş kartıyla 720x1280 dikey filme çevirir. Görünüm: "Tamamı görünsün" (bulanık arka plan, üstte isimler, altta gün) / "Ekranı doldur". Ses: videonun kendi sesi (kayıtta MediaElementSource ile), müzik kutusu, şarkılar ya da sessiz. Kullanıcının videoları ASLA depoya/yayına konmaz.
-Not: Claude tarayıcı panelinde "Video oluştur" kaydı panel görünürlüğü değiştiği için hemen durur (visibilitychange); kayıt hattı konsoldan ClipFilm + MediaRecorder ile doğrulandı.
+## Güncel durum (16 Ekim 2026)
+- **Animasyon sekmesi** üç tür: Videolarım (varsayılan) · Çizgi film · Fotoğraflı film.
+- **Videolarım**: liste + telefonun kendi `<video>` oynatıcısı; dokunulan video oynar (seçenek yok). Hazır videolar `public/film/` içinde, kullanıcı açıkça isteyip herkese açık olacağını onayladı: `animasyon.mp4` → **"Hayat"** (10 sn, kendi sesiyle), `yolda.mp4` → **"Birlikte Güzel"** (20 sn, İngilizce konuşma olduğu için sessiz oynar, müzik kutusu çalar). Liste `src/features/Anim.tsx` içindeki `FILMS`. Cihazda eklenmiş klipler (`src/data/clips.ts`, IndexedDB `clips`) de listede görünür; arayüzde ekleme düğmesi yok.
+- **Çizgi film**: yalnızca "Çizgi filmi başlat" düğmesi (önizleme + müzik kutusu, kayıt yok).
+- **Fotoğraflı film**: eskisi gibi (süre/stil/müzik, Önizle, Video oluştur). "Şarkılarım" yalnızca şarkı varsa görünür.
+- **Ayarlar**: "Anı filmi şarkıları" bölümü kaldırıldı.
+- **Alt boşluk (iPhone ana ekran)**: `.app` position:fixed, yüksekliği `--app-h`; `main.tsx` iOS standalone'da `screen.height` ile ölçer. Kullanıcı telefonda sonucu henüz doğrulamadı.
+- `src/lib/clipfilm.ts` artık kullanılmıyor (silme izni verilmedi), istenirse silinebilir.
+- Sürüm damgası Ayarlar'ın en altında (UTC).
 
 ## Önceki iş: çizgi filmi gerçek 3D (Pixar tarzı) yapmak
 İstek: referans = `Yeni klasör (6)` içindeki ekran görüntüsü (3D CGI, sıcak altın ışık, bokeh, kenar ışığı). Karakter yüzleri: `Yeni klasör (5)` içinde kalan tek fotoğraf (arabada selfie): Adem = yuvarlak dolgun yüz, geniş alın, M saç çizgisi (şakaklar geride), kısa koyu kahve saç, kalın düz koyu kaşlar, açık kahve-yeşilimsi göz, kısa kirli sakal, pembe yanaklar, açık gri uzun kollu tişört + koyu kot (fotoğraftaki gibi; 3D'de güncellendi), dolgun koyu sakal. Sena = oval yüz, ortadan ayrık, omuzdan uzun düz saç (bal sarısı; köklerde koyu, uçlarda açık), kahve gözler, çiller, altın küpe, lacivert bluz + bej etek (3D'de güncellendi).
