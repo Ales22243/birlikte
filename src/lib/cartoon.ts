@@ -1,5 +1,16 @@
 import { daysBetween, parseISO } from './time'
 import { drawPerson, HEART_PATH } from './cartoon-people'
+import type { SceneKind, World } from './c3d/world'
+
+// 3D dünya tek bir WebGL bağlamı kullanır: tembel yüklenir ve tüm çizgi filmler arasında paylaşılır.
+// WebGL yoksa (ya da yüklenemezse) eski 2D karakterlere düşülür.
+let worldPromise: Promise<World | null> | null = null
+function loadWorld() {
+  worldPromise ??= import('./c3d/world')
+    .then((m) => new m.World(CW, CH))
+    .catch(() => null)
+  return worldPromise
+}
 
 export const CW = 720
 export const CH = 1280
@@ -112,11 +123,31 @@ export class Cartoon {
     ]
   }
 
-  async prepare() {}
+  private w3: World | null = null
+
+  async prepare() {
+    this.w3 = await loadWorld()
+    // gölgelendiriciler ilk karede derlenip kayıtta takılma yapmasın diye her sahne bir kez çizilir
+    if (this.w3) for (const [k, t] of [['chairs', 0], ['walk', 12], ['shack', 27]] as const) this.w3.render(k, t)  }
   prefetch(_t: number) {
     void _t
   }
   dispose() {}
+
+  /** 3D karakter başının, sahnenin 2D kamera yakınlaşması (cam) uygulandıktan sonraki ekran konumu. */
+  private head(who: 'adem' | 'sena', local: number, dur: number, fx: number, fy: number, z0: number, z1: number, pan = 0) {
+    const p = this.w3!.headScreen(who)
+    const k = smooth(local / dur)
+    const z = lerp(z0, z1, k)
+    const hx = fx + pan * (k - 0.5) + (p.x - fx) * z
+    // x: balon merkezi (ekrandan taşmasın), hx: kuyruğun gideceği gerçek baş konumu
+    return { x: Math.min(560, Math.max(160, hx)), y: fy + (p.y - fy) * z, hx }
+  }
+
+  /** 3D karakterleri ve yakın nesneleri o anki 2D dönüşümle birlikte tuvale bindirir. */
+  private people3d(ctx: CanvasRenderingContext2D, kind: SceneKind, t: number) {
+    ctx.drawImage(this.w3!.render(kind, t), 0, 0, CW, CH)
+  }
 
   draw(ctx: CanvasRenderingContext2D, t: number) {
     t = Math.min(t, CARTOON_SECONDS - 0.001)
@@ -397,6 +428,25 @@ export class Cartoon {
     // yengeç
     this.crab(ctx, ((t * 20) % 900) - 120, 1230, t)
 
+    if (this.w3) {
+      this.people3d(ctx, 'chairs', t)
+      ctx.restore()
+      const A = this.head('adem', t, 12.6, 360, 900, 1, 1.1)
+      const S = this.head('sena', t, 12.6, 360, 900, 1, 1.1)
+      this.hearts(ctx, t, 360, (A.y + S.y) / 2 + 120, 6.6, 12, 0.8)
+      this.bubble(ctx, 'Yürüyelim mi?', t, 9.2, 11.6, A.x, A.y - 200, A.hx, A.y - 80)
+      this.bubble(ctx, 'Olur, hadi!', t, 10.2, 12.2, S.x, S.y - 130, S.hx, S.y - 70, '#ffe3ef')
+    } else {
+      this.chairs2d(ctx, t)
+      this.hearts(ctx, t, 360, 900, 6.6, 12, 0.8)
+      this.bubble(ctx, 'Yürüyelim mi?', t, 9.2, 11.6, 190, 735, 215, 800)
+      this.bubble(ctx, 'Olur, hadi!', t, 10.2, 12.2, 520, 690, 505, 800, '#ffe3ef')
+    }
+    this.caption(ctx, 'Gün batarken, yan yana...', t, 0.2, 5.6)
+  }
+
+  /** WebGL olmayan cihazlar için eski 2D şezlong sahnesi (ctx.save içinde çağrılır, restore eder). */
+  private chairs2d(ctx: CanvasRenderingContext2D, t: number) {
     const turnA = smooth((t - 4.8) / 1.2)
     const turnS = smooth((t - 4.4) / 1.2)
     const laugh = pulse(t, 8.2, 10.2, 0.4)
@@ -439,12 +489,7 @@ export class Cartoon {
       ctx.ellipse(x, y, 30, 11, 0.1, 0, TAU)
       ctx.fill()
     }
-
     ctx.restore()
-    this.hearts(ctx, t, 360, 900, 6.6, 12, 0.8)
-    this.bubble(ctx, 'Yürüyelim mi?', t, 9.2, 11.6, 190, 735, 215, 800)
-    this.bubble(ctx, 'Olur, hadi!', t, 10.2, 12.2, 520, 690, 505, 800, '#ffe3ef')
-    this.caption(ctx, 'Gün batarken, yan yana...', t, 0.2, 5.6)
   }
 
   private chairBack(ctx: CanvasRenderingContext2D, x: number, color: string) {
@@ -612,6 +657,23 @@ export class Cartoon {
     }
 
     // el ele, birbirine bakarak, mutlu
+    if (this.w3) {
+      this.people3d(ctx, 'walk', t)
+      ctx.restore()
+      const A = this.head('adem', local, 16.4, 360, 960, 1.04, 1.0, 14)
+      const S = this.head('sena', local, 16.4, 360, 960, 1.04, 1.0, 14)
+      this.hearts(ctx, t, (A.hx + S.hx) / 2, (A.y + S.y) / 2 + 60, 13, 26, 1.0)
+      this.bubble(ctx, 'Seninle her yer güzel', t, 15.4, 18.4, 360, A.y - 180, A.hx, A.y - 80, '#ffffff', 30)
+    } else {
+      this.walk2d(ctx, t)
+      ctx.restore()
+      this.hearts(ctx, t, 350, 780, 13, 26, 1.0)
+      this.bubble(ctx, 'Seninle her yer güzel', t, 15.4, 18.4, 360, 590, 345, 650, '#ffffff', 30)
+    }
+    this.caption(ctx, 'El ele, kıyıda yürüyüş...', t, 12.4, 18.6)
+  }
+
+  private walk2d(ctx: CanvasRenderingContext2D, t: number) {
     const ph = t * 6.2
     const hold = { x: 345, y: 888 }
     const glance = 0.75 + 0.25 * Math.sin(t * 0.9)
@@ -622,10 +684,6 @@ export class Cartoon {
     drawPerson(ctx, {
       who: 'sena', x: 440, y: 1126, s: 1.24, pose: 'walk', t, ph: ph + 0.4, look: -0.95 * glance, tilt: -0.1, mouth: 0.25 + joyA * 0.7, joy: joyA, handA: hold, bounce: Math.sin(t * 15 + 1) * 2 * joyA,
     })
-    ctx.restore()
-    this.hearts(ctx, t, 350, 780, 13, 26, 1.0)
-    this.bubble(ctx, 'Seninle her yer güzel', t, 15.4, 18.4, 360, 590, 345, 650, '#ffffff', 30)
-    this.caption(ctx, 'El ele, kıyıda yürüyüş...', t, 12.4, 18.6)
   }
 
   private farShack(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, night: number) {
@@ -830,6 +888,52 @@ export class Cartoon {
       }
     }
 
+    // konuşanların baş konumları (3D'de gerçek baş, 2D'de sabit yerler)
+    let A = { x: 238, y: 860, hx: 238 }
+    let S = { x: 458, y: 860, hx: 458 }
+    let glassY = 850
+    if (this.w3) {
+      this.people3d(ctx, 'shack', t)
+      if (this.w3.clink) this.sparkle(ctx, this.w3.clink.x, this.w3.clink.y, (d - 15.5) / 0.45)
+      ctx.restore()
+      A = this.head('adem', d, 17.8, 360, 900, 1.0, 1.07)
+      S = this.head('sena', d, 17.8, 360, 900, 1.0, 1.07)
+      glassY = Math.min(A.y, S.y) + 40
+    } else {
+      this.shack2d(ctx, t, d)
+      ctx.restore()
+    }
+
+    // konuşma balonları ve kahkaha yazıları
+    const up = this.w3 ? 70 : 60
+    this.bubble(ctx, 'Burnunda sos var!', d > 5 ? t : 0, 26.6 + 5.4, 26.6 + 7.6, A.x + 20, A.y - 125 - up, A.hx, A.y - up)
+    const ha: [typeof A, number, string][] = [[A, 125, 'HA HA!'], [S, 125, 'HAHAHA'], [A, 200, 'HA HA HA!'], [S, 200, 'HIH HIH!']]
+    for (const [i, [P, dy, text]] of ha.entries()) {
+      const a = 26.6 + 6.6 + i * 1.1
+      const x = P === A ? Math.max(130, P.x - 40) : Math.min(590, P.x + 40)
+      this.bubble(ctx, text, t, a, a + 1.5, x, P.y - dy - up, P.hx, P.y - up, i % 2 ? '#fff0b8' : '#ffffff', 36)
+    }
+    this.bubble(ctx, 'Şerefe!', t, 26.6 + 14.6, 26.6 + 16.8, 360, Math.min(A.y, S.y) - 150 - up, 360, glassY - 80, '#ffe3ef', 36)
+    this.hearts(ctx, t, 360, glassY - 30, 26.6 + 15.8, 44, 0.6)
+    this.caption(ctx, 'Akşam da salaş balıkçıda balık dürüm...', t, 27.4, 34, 100)
+    ctx.fillStyle = `rgba(20,10,40,${0.16 * (1 - sky.night)})`
+    ctx.fillRect(0, 0, CW, CH)
+  }
+
+  /** Kadeh tokuşturma parıltısı; u: 0 → 1. */
+  private sparkle(ctx: CanvasRenderingContext2D, x: number, y: number, u: number) {
+    ctx.strokeStyle = `rgba(255,240,180,${1 - u})`
+    ctx.lineWidth = 3
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU
+      ctx.beginPath()
+      ctx.moveTo(x + Math.cos(a) * (14 + u * 6), y + Math.sin(a) * (14 + u * 6))
+      ctx.lineTo(x + Math.cos(a) * (26 + u * 30), y + Math.sin(a) * (26 + u * 30))
+      ctx.stroke()
+    }
+  }
+
+  private shack2d(ctx: CanvasRenderingContext2D, t: number, d: number) {
     // masa
     const tableTop = 1034
     ctx.fillStyle = '#e9e1cf'
@@ -924,31 +1028,7 @@ export class Cartoon {
       this.glass(ctx, wrapA.x, wrapA.y, cheers)
       this.glass(ctx, wrapS.x, wrapS.y, cheers)
     }
-    if (clink) {
-      const u = (d - 15.5) / 0.45
-      ctx.strokeStyle = `rgba(255,240,180,${1 - u})`
-      ctx.lineWidth = 3
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * TAU
-        ctx.beginPath()
-        ctx.moveTo(350 + Math.cos(a) * (14 + u * 6), 860 + Math.sin(a) * (14 + u * 6))
-        ctx.lineTo(350 + Math.cos(a) * (26 + u * 30), 860 + Math.sin(a) * (26 + u * 30))
-        ctx.stroke()
-      }
-    }
-    ctx.restore()
-
-    // konuşma balonları ve kahkaha yazıları
-    this.bubble(ctx, 'Burnunda sos var!', d > 5 ? t : 0, 26.6 + 5.4, 26.6 + 7.6, 250, 745, 238, 800)
-    for (const [i, [x, y, text]] of ([[160, 735, 'HA HA!'], [560, 735, 'HAHAHA'], [200, 660, 'HA HA HA!'], [530, 660, 'HIH HIH!']] as [number, number, string][]).entries()) {
-      const a = 26.6 + 6.6 + i * 1.1
-      this.bubble(ctx, text, t, a, a + 1.5, x, y, x < 360 ? 238 : 458, 860, i % 2 ? '#fff0b8' : '#ffffff', 36)
-    }
-    this.bubble(ctx, 'Şerefe!', t, 26.6 + 14.6, 26.6 + 16.8, 360, 780, 350, 850, '#ffe3ef', 36)
-    this.hearts(ctx, t, 360, 820, 26.6 + 15.8, 44, 0.6)
-    this.caption(ctx, 'Akşam da salaş balıkçıda balık dürüm...', t, 27.4, 34, 100)
-    ctx.fillStyle = `rgba(20,10,40,${0.16 * (1 - sky.night)})`
-    ctx.fillRect(0, 0, CW, CH)
+    if (clink) this.sparkle(ctx, 350, 860, (d - 15.5) / 0.45)
   }
 
   private eatCycle(d: number, offset: number, from: number, to: number) {

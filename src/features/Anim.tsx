@@ -75,13 +75,14 @@ export function Anim({ settings }: { settings: Settings }) {
   useEffect(() => {
     if (phase !== 'idle' && phase !== 'done') return
     let live = true
-    void fontsReady().then(() => {
-      const c = canvas.current
-      if (!live || !c) return
+    void fontsReady().then(async () => {
       const a: FrameSource =
         kind === 'cizgi'
           ? new Cartoon({ a: settings.a, b: settings.b, start: settings.start })
           : new Animator({ photos: [], a: settings.a, b: settings.b, start: settings.start, style: 'karisik' })
+      if (kind === 'cizgi') await a.prepare()
+      const c = canvas.current
+      if (!live || !c) return
       a.draw(c.getContext('2d')!, kind === 'cizgi' ? 6.4 : 2.9)
     })
     return () => {

@@ -246,14 +246,14 @@ export class Humanoid {
   private thighs: THREE.Mesh[] = []
   private shins: THREE.Mesh[] = []
   private feet: THREE.Group[] = []
-  private eyes: { ball: THREE.Group; lidU: THREE.Group; lidL: THREE.Group; side: number }[] = []
+  private eyes: { ball: THREE.Group; lidU: THREE.Group; lidL: THREE.Group; side: number; lash: THREE.Mesh; happy: THREE.Mesh }[] = []
   private brows: THREE.Mesh[] = []
   private mouthTex!: THREE.CanvasTexture
   private mouthCtx!: CanvasRenderingContext2D
   private hairBack?: THREE.Group
   private nose!: THREE.Group
+  skirt?: THREE.Mesh
   readonly sauce: THREE.Mesh
-  readonly tears: THREE.Mesh[] = []
   private skinMat!: THREE.MeshPhysicalMaterial
   private flatSkin!: THREE.MeshPhysicalMaterial
   private shirtColor: string
@@ -263,7 +263,7 @@ export class Humanoid {
     this.who = who
     this.d = DIMS[who]
     this.shirtColor = who === 'adem' ? '#f0861f' : '#b4c99b'
-    this.pantsColor = who === 'adem' ? '#c9b89a' : '#b4c99b'
+    this.pantsColor = who === 'adem' ? '#b3a68c' : '#b4c99b'
     this.group.add(this.torso)
     this.buildMaterials()
     this.buildTorso()
@@ -272,13 +272,6 @@ export class Humanoid {
     this.sauce = new THREE.Mesh(new THREE.SphereGeometry(this.d.R * 0.07, 12, 10), new THREE.MeshStandardMaterial({ color: '#d63a30', roughness: 0.3 }))
     this.sauce.visible = false
     this.nose.add(this.sauce)
-    for (const sd of [-1, 1]) {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(this.d.R * 0.035, 8, 8), new THREE.MeshBasicMaterial({ color: '#8ec6ff', transparent: true, opacity: 0.85 }))
-      m.visible = false
-      m.userData.side = sd
-      this.head.add(m)
-      this.tears.push(m)
-    }
     this.group.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) {
         o.castShadow = true
@@ -308,21 +301,13 @@ export class Humanoid {
     const prof: THREE.Vector2[] = adem
       ? [[0.001, -0.02], [0.17, 0], [0.175, 0.1], [0.19, 0.24], [0.21, 0.38], [0.225, 0.46], [0.19, 0.51], [0.1, 0.545], [0.001, 0.55]].map(([x, y]) => new THREE.Vector2(x, y))
       : [[0.001, -0.02], [0.135, 0], [0.12, 0.1], [0.115, 0.2], [0.14, 0.32], [0.175, 0.42], [0.175, 0.47], [0.1, 0.5], [0.001, 0.51]].map(([x, y]) => new THREE.Vector2(x, y))
-    const body = new THREE.Mesh(new THREE.LatheGeometry(prof, 40), this.cloth(this.shirtColor, 0.72))
+    const body = new THREE.Mesh(new THREE.LatheGeometry(prof, 28), this.cloth(this.shirtColor, 0.72))
     body.scale.z = adem ? 0.62 : 0.6
     this.torso.add(body)
     // boyun ve yaka açıklığı
     const neck = new THREE.Mesh(new THREE.CylinderGeometry(d.R * 0.5, d.R * 0.56, d.neck * 1.4, 20), this.flatSkin)
     neck.position.set(0, d.torso + d.neck * 0.3, 0)
     this.torso.add(neck)
-    if (!adem) {
-      // yuvarlak yaka açıklığı
-      const vSkin = new THREE.Mesh(new THREE.CircleGeometry(0.052, 24, Math.PI, Math.PI), this.flatSkin)
-      vSkin.scale.set(1.1, 0.8, 1)
-      vSkin.position.set(0, d.torso - 0.012, 0.6 * 0.165 + 0.012)
-      vSkin.rotation.x = -0.15
-      this.torso.add(vSkin)
-    }
     if (adem) {
       const buttons = new THREE.MeshStandardMaterial({ color: '#fff3e0', roughness: 0.4 })
       for (let i = 0; i < 3; i++) {
@@ -356,6 +341,7 @@ export class Humanoid {
       skirt.scale.z = 0.8
       skirt.position.y = -0.17
       this.torso.add(skirt)
+      this.skirt = skirt
     }
   }
 
@@ -366,7 +352,7 @@ export class Humanoid {
     const a = R * (adem ? 0.95 : 0.9)
     const b = R * 1.08
     const c = R * (adem ? 1.0 : 0.96)
-    const geo = new THREE.SphereGeometry(1, 80, 60)
+    const geo = new THREE.SphereGeometry(1, 56, 42)
     const pos = geo.attributes.position
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i)
@@ -423,12 +409,12 @@ export class Humanoid {
       const eyeG = new THREE.Group()
       eyeG.position.set(sd * eyeX, eyeY, zs - eR * 0.55)
       const ball = new THREE.Group()
-      const white = new THREE.Mesh(new THREE.SphereGeometry(eR, 28, 22), new THREE.MeshStandardMaterial({ color: '#f6f0ec', roughness: 0.25 }))
+      const white = new THREE.Mesh(new THREE.SphereGeometry(eR, 20, 14), new THREE.MeshStandardMaterial({ color: '#f6f0ec', roughness: 0.25 }))
       ball.add(white)
       const iris = new THREE.Mesh(new THREE.CircleGeometry(eR * 0.66, 32), new THREE.MeshStandardMaterial({ map: irisTex, roughness: 0.3, polygonOffsetFactor: -2, polygonOffset: true }))
       iris.position.z = eR * 0.985
       ball.add(iris)
-      const gloss = new THREE.Mesh(new THREE.SphereGeometry(eR * 1.02, 28, 22), new THREE.MeshPhysicalMaterial({ color: '#ffffff', transparent: true, opacity: 0.1, roughness: 0.03, clearcoat: 1, clearcoatRoughness: 0.02 }))
+      const gloss = new THREE.Mesh(new THREE.SphereGeometry(eR * 1.02, 20, 14), new THREE.MeshPhysicalMaterial({ color: '#ffffff', transparent: true, opacity: 0.1, roughness: 0.03, clearcoat: 1, clearcoatRoughness: 0.02 }))
       ball.add(gloss)
       const hl1 = new THREE.Mesh(new THREE.CircleGeometry(eR * 0.15, 14), new THREE.MeshBasicMaterial({ color: '#ffffff' }))
       hl1.position.set(-eR * 0.24, eR * 0.3, eR * 1.015)
@@ -440,19 +426,25 @@ export class Humanoid {
       // göz kapakları
       const lidMat = new THREE.MeshPhysicalMaterial({ color: this.who === 'adem' ? '#eebd95' : '#f4cfb2', roughness: 0.5, sheen: 0.8, sheenColor: new THREE.Color('#ffb59a'), side: THREE.DoubleSide })
       const lidU = new THREE.Group()
-      const capU = new THREE.Mesh(new THREE.SphereGeometry(eR * 1.09, 26, 14, 0, Math.PI * 2, 0, Math.PI / 2), lidMat)
+      const capU = new THREE.Mesh(new THREE.SphereGeometry(eR * 1.09, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), lidMat)
       lidU.add(capU)
       const lash = new THREE.Mesh(new THREE.TorusGeometry(eR * 1.07, adem ? eR * 0.07 : eR * 0.1, 6, 28, Math.PI), new THREE.MeshStandardMaterial({ color: adem ? '#2a1c14' : '#241510', roughness: 0.6 }))
       lash.rotation.set(Math.PI / 2, 0, Math.PI)
       lash.rotation.order = 'XYZ'
       lidU.add(lash)
       const lidL = new THREE.Group()
-      const capL = new THREE.Mesh(new THREE.SphereGeometry(eR * 1.09, 26, 14, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), lidMat)
+      const capL = new THREE.Mesh(new THREE.SphereGeometry(eR * 1.09, 20, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), lidMat)
       lidL.add(capL)
       eyeG.add(lidU)
       eyeG.add(lidL)
+      // gülerken kapanan göz: kalın ∩ kirpik çizgisi
+      const happy = new THREE.Mesh(new THREE.TorusGeometry(eR * 0.72, eR * 0.13, 8, 24, Math.PI), new THREE.MeshStandardMaterial({ color: adem ? '#2a1c14' : '#241510', roughness: 0.6 }))
+      happy.position.set(0, -eR * 0.25, eR * 1.05)
+      happy.scale.set(1, 0.8, 0.5)
+      happy.visible = false
+      eyeG.add(happy)
       this.head.add(eyeG)
-      this.eyes.push({ ball, lidU, lidL, side: sd })
+      this.eyes.push({ ball, lidU, lidL, side: sd, lash, happy })
     }
 
     // kaşlar
@@ -537,23 +529,23 @@ export class Humanoid {
       }
       const map = hairTexture('#3a2b22', '#7a604b', '#241a14', E, false)
       const mat = new THREE.MeshPhysicalMaterial({ map, alphaMap: undefined, transparent: true, alphaTest: 0.5, roughness: 0.42, sheen: 0.6, sheenColor: new THREE.Color('#d8b080'), sheenRoughness: 0.5 })
-      const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 72, 54), mat)
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 36), mat)
       shell.scale.set(a * 1.1, b * 1.1, c * 1.1)
       shell.position.y = R * 0.015
       this.head.add(shell)
       // saç hacmi: geriye taranmış, hafif kabarık kısa saç
       const hm = new THREE.MeshPhysicalMaterial({ color: '#3b2c23', roughness: 0.42, sheen: 0.6, sheenColor: new THREE.Color('#d8b080'), sheenRoughness: 0.5 })
       const clump = (sx: number, sy: number, sz: number, x: number, y: number, z: number, rx = 0, rz = 0) => {
-        const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 22), hm)
+        const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), hm)
         m.scale.set(sx, sy, sz)
         m.position.set(x, y, z)
         m.rotation.set(rx, 0, rz)
         this.head.add(m)
       }
-      clump(a * 1.0, R * 0.3, c * 1.0, 0, b * 0.9, -c * 0.08, -0.12)
-      clump(a * 0.78, R * 0.2, c * 0.55, 0, b * 0.9, c * 0.42, -0.62)
-      clump(a * 0.5, R * 0.14, c * 0.34, a * 0.12, b * 0.84, c * 0.62, -0.9)
-      for (const sd of [-1, 1]) clump(R * 0.07, R * 0.36, c * 0.5, sd * a * 0.98, b * 0.5, -c * 0.12, 0, sd * 0.08)
+      // tepe hacmi kabuğun içine gömülü durur, yalnızca hafif bir kabarıklık verir (kenarı bere gibi taşmaz)
+      clump(a * 0.8, b * 0.5, c * 0.85, 0, b * 0.75, -c * 0.08, -0.1)
+      clump(a * 0.62, R * 0.2, c * 0.5, 0, b * 0.88, c * 0.4, -0.62)
+      clump(a * 0.42, R * 0.13, c * 0.3, a * 0.1, b * 0.84, c * 0.6, -0.9)
     } else {
       const E: Hairline = (phi) => {
         const p = Math.abs(phi)
@@ -565,7 +557,7 @@ export class Humanoid {
       }
       const map = hairTexture('#c79a5e', '#ecd3a2', '#8d6338', E, true)
       const mat = new THREE.MeshPhysicalMaterial({ map, transparent: true, alphaTest: 0.5, roughness: 0.38, sheen: 0.7, sheenColor: new THREE.Color('#ffd9a0'), sheenRoughness: 0.4 })
-      const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 72, 54), mat)
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 36), mat)
       shell.scale.set(a * 1.05, b * 1.06, c * 1.06)
       shell.position.y = R * 0.01
       this.head.add(shell)
@@ -576,7 +568,7 @@ export class Humanoid {
       const prof: THREE.Vector2[] = [
         [0.3, 0.75], [0.9, 0.62], [1.12, 0.1], [1.2, -0.7], [1.18, -1.8], [1.1, -2.9], [0.98, -3.7], [0.82, -4.2],
       ].map(([r, y]) => new THREE.Vector2(r * R, y * R))
-      const cloak = new THREE.Mesh(new THREE.LatheGeometry(prof, 40, Math.PI * 0.42, Math.PI * 1.16), longMat)
+      const cloak = new THREE.Mesh(new THREE.LatheGeometry(prof, 28, Math.PI * 0.42, Math.PI * 1.16), longMat)
       const cp = cloak.geometry.attributes.position
       for (let i = 0; i < cp.count; i++) {
         // uç kesimi dalgalı ve hafif sivri
@@ -636,7 +628,7 @@ export class Humanoid {
     const legCol = adem ? this.pantsColor : '#f4cfb2'
     const legR = adem ? 0.064 : 0.05
     for (let i = 0; i < 2; i++) {
-      const th = capsule(legR * 1.12, d.thigh - legR * 2, this.cloth(adem ? this.pantsColor : legCol, 0.8))
+      const th = capsule(legR * 1.12, d.thigh - legR * 2, adem ? this.cloth(this.pantsColor, 0.8) : this.flatSkin.clone())
       const sh = capsule(legR * 0.92, d.shin - legR * 2, this.cloth(adem ? this.pantsColor : legCol, 0.8))
       this.group.add(th, sh)
       this.thighs.push(th)
@@ -684,6 +676,18 @@ export class Humanoid {
     this.torso.position.copy(pose.hip)
     this.torso.rotation.set(pose.torsoPitch, pose.torsoYaw, pose.torsoRoll, 'YXZ')
     this.torso.updateMatrix()
+    if (this.skirt) {
+      // otururken etek kalçada toplanır; uylukları elbise rengindeki bacak örter
+      const seated = pose.hip.y < 0.6
+      this.skirt.scale.set(seated ? 0.78 : 1, seated ? 0.3 : 1, seated ? 0.62 : 0.8)
+      this.skirt.position.y = seated ? -0.03 : -0.17
+      for (const th of this.thighs) {
+        const m = th.material as THREE.MeshPhysicalMaterial
+        m.color.set(seated ? '#b4c99b' : '#f1c8aa')
+        m.sheen = seated ? 0 : 0.8
+        th.scale.set(seated ? 1.35 : 1, 1, seated ? 1.35 : 1)
+      }
+    }
     this.head.rotation.set(pose.headPitch, pose.headYaw, pose.headRoll, 'YXZ')
 
     const toGroup = (v: THREE.Vector3) => v.clone().applyMatrix4(this.torso.matrix)
@@ -717,7 +721,7 @@ export class Humanoid {
     })
 
     // yüz
-    this.updateFace(expr, t, adem)
+    this.updateFace(expr, adem)
     if (this.hairBack) {
       const sway = Math.sin(t * 1.7) * 0.03
       this.hairBack.rotation.x = sway * 0.4 + pose.headPitch * -0.2
@@ -725,14 +729,18 @@ export class Humanoid {
     }
   }
 
-  private updateFace(e: Expr, t: number, adem: boolean) {
+  private updateFace(e: Expr, adem: boolean) {
     const R = this.d.R
-    const closed = Math.max(e.blink, e.joy > 0.5 ? 1 : 0, e.squint * 0.7)
+    const happy = e.joy > 0.5
+    const closed = Math.max(e.blink, happy ? 1 : 0, e.squint * 0.7)
     for (const eye of this.eyes) {
-      eye.ball.rotation.set(-e.look.y * 0.35, e.look.x * 0.5 * (eye.side > 0 ? 1 : 1), 0)
+      eye.ball.rotation.set(-e.look.y * 0.35, e.look.x * 0.5, 0)
       const open = -0.98
       eye.lidU.rotation.x = open + (1.52 - open) * Math.min(1, closed)
-      eye.lidL.rotation.x = 1.0 + (-1.1 - 1.0) * Math.min(1, e.joy > 0.5 ? 0.55 : e.squint * 0.5 + (closed > 0.9 ? 0.5 : 0))
+      eye.lidL.rotation.x = 1.0 + (-1.1 - 1.0) * Math.min(1, happy ? 0.55 : e.squint * 0.5 + (closed > 0.9 ? 0.5 : 0))
+      eye.happy.visible = happy
+      eye.lash.visible = !happy
+      eye.ball.visible = !happy
     }
     for (let i = 0; i < 2; i++) {
       const b = this.brows[i]
@@ -774,7 +782,7 @@ export class Humanoid {
       ctx.quadraticCurveTo(cx, cy + 21 + corner * 0.8, cx + mw * 0.3, cy + 17 + corner * 0.8)
       ctx.stroke()
     } else {
-      const hh = 14 + open * 56
+      const hh = 14 + open * 68
       const top = cy - corner - 4
       ctx.fillStyle = '#5a1f26'
       ctx.beginPath()
@@ -808,20 +816,30 @@ export class Humanoid {
       ctx.stroke()
     }
     this.mouthTex.needsUpdate = true
-    // gözyaşları
-    for (const tr of this.tears) {
-      tr.visible = e.joy > 0.4
-      if (tr.visible) {
-        const k = (t * 2 + (tr.userData.side > 0 ? 0.4 : 0)) % 1
-        tr.position.set(tr.userData.side * (R * 0.5 + k * R * 0.25), R * 0.0 - k * R * 0.55, R * 0.75)
-      }
-    }
   }
 
   /** Sosu burnun ucunda göster/gizle. */
   setSauce(on: boolean) {
     this.sauce.visible = on
     this.sauce.position.set(0, -this.d.R * 0.05, this.d.R * 0.2)
+  }
+
+  /** Verilen duruşta ağzın önündeki noktanın grup koordinatı (eli ağza götürmek için). */
+  mouthIn(pose: Pose3, forward = 1.0): THREE.Vector3 {
+    const R = this.d.R
+    const m = new THREE.Matrix4().compose(pose.hip, new THREE.Quaternion().setFromEuler(new THREE.Euler(pose.torsoPitch, pose.torsoYaw, pose.torsoRoll, 'YXZ')), new THREE.Vector3(1, 1, 1))
+    const h = new THREE.Matrix4().compose(this.head.position, new THREE.Quaternion().setFromEuler(new THREE.Euler(pose.headPitch, pose.headYaw, pose.headRoll, 'YXZ')), new THREE.Vector3(1, 1, 1))
+    return new THREE.Vector3(0, -R * 0.5, R * forward).applyMatrix4(h).applyMatrix4(m)
+  }
+
+  /** Elin (0 = L, 1 = R) grup koordinatı: son `update` sonrası. */
+  hand(i: number) {
+    return this.hands[i].position.clone()
+  }
+
+  /** Kafa merkezinin dünya konumu (matrisler güncel olmalı). */
+  headWorld(out: THREE.Vector3) {
+    return this.head.getWorldPosition(out)
   }
 
   get dims() {

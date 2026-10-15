@@ -14,7 +14,15 @@ Yayın komutları (her seferinde): `npm run build` → `git add -A; git commit; 
 İstek: referans = `Yeni klasör (6)` içindeki ekran görüntüsü (3D CGI, sıcak altın ışık, bokeh, kenar ışığı). Karakter yüzleri: `Yeni klasör (5)` içinde kalan tek fotoğraf (arabada selfie): Adem = yuvarlak dolgun yüz, geniş alın, M saç çizgisi (şakaklar geride), kısa koyu kahve saç, kalın düz koyu kaşlar, açık kahve-yeşilimsi göz, kısa kirli sakal, pembe yanaklar, turuncu gömlek + bej pantolon + beyaz spor ayakkabı. Sena = oval yüz, ortadan ayrık, omuzdan uzun düz saç (bal sarısı; köklerde koyu, uçlarda açık), kahve gözler, çiller, altın küpe, adaçayı yeşili elbise.
 Hikâye (mevcut 2D sürümdeki gibi, 47 sn): 1) şezlongda gün batımı (arkadan, sonra birbirine dönüp gülerler, "Yürüyelim mi?") 2) el ele yürüyüş, birbirine bakıp mutlu 3) salaş balıkçıda balık dürüm, Sena'nın burnunda sos, kahkaha, "Şerefe!" 4) kapanış. Filmvari, kesintisiz geçişler.
 
-### Durum
+### Güncel durum (15 Ekim 2026, ikinci oturum): 3D BAĞLANDI ve YAYINLANDI
+- `world.ts` üç sahneyi de çiziyor (`poseChairs`, `poseWalk`, `poseShack`); `cartoon.ts` `prepare()` içinde `loadWorld()` ile 3D dünyayı tembel yükler (tek WebGL bağlamı, modül düzeyinde paylaşılır) ve her sahnede `people3d()` ile bindirir. WebGL yoksa eski 2D karakterlere düşer (`chairs2d`, `walk2d`, `shack2d`).
+- Konuşma balonları 3D başın ekran konumuna göre yerleşir (`Cartoon.head()` → `World.headScreen()`), kadeh parıltısı `World.clink`.
+- Gülerken göz: `happy` ∩ çizgisi (göz küresi gizlenir). Gözyaşları kaldırıldı. Sena otururken etek küçülür, uyluk elbise rengine döner.
+- Masaüstü ölçüm (Intel UHD): kare ~21 ms, geçişlerde ~45 ms. 47 sn MP4 kaydı denendi (23 MB) ve çalıştı. iPhone'da denenmedi.
+- `dev.ts` silindi. Sahne ayarı için geçici olarak `window.__w3 = this.w3` ekleyip konsoldan `__w3.render(kind,t)` + kamera ile yakın plan çekmek pratik.
+- Olası iyileştirmeler: eklem yerlerinde "manken" görüntüsü (kapsül uzuvlar), Adem'in pantolon rengi ten rengine yakın, iPhone'da yavaşsa `Stage` gölgeyi kapatma / pikselOranı 0.75 seçeneği.
+
+### Eski durum (ilk oturum)
 - **Çalışan, yayında olan**: 2D çizgi film (src/lib/cartoon.ts + cartoon-people.ts), kullanıcı bunun "gerçekçi/3D değil" olduğunu söyledi, bu yüzden 3D'ye geçiliyor.
 - **Yeni 3D modülü (henüz uygulamaya bağlı DEĞİL, yayınlanmadı)**: `three` kuruldu. `src/lib/c3d/`:
   - `humanoid.ts` (tamam, test edildi): `Humanoid('adem'|'sena')`. Kafa (küre + çene/yanak deformasyonu, kıvrık yüzeye raycast ile yerleşen gözler/kaşlar/burun/ağız çıkartması), saç (kabuk doku + hacim kümeleri; Sena için lathe "pelerin" + yan lüleler), sakal dokusu, gövde/kıyafet, IK'li kollar-bacaklar. `update(pose: Pose3, expr: Expr, t)`. Yüz yakın planları gerçekten iyi göründü (Adem ve Sena). Ağız yüzü canvas dokusundan her karede boyanıyor.

@@ -27,7 +27,7 @@ export class Stage {
   readonly catcher: THREE.Mesh
   readonly w: number
   readonly h: number
-  private env?: THREE.Texture
+  private envs = new Map<LightRig, THREE.Texture>()
   private pmrem: THREE.PMREMGenerator
 
   constructor(w = 720, h = 1280) {
@@ -45,8 +45,8 @@ export class Stage {
     this.camera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100)
 
     this.key.castShadow = true
-    this.key.shadow.mapSize.set(2048, 2048)
-    this.key.shadow.radius = 5
+    this.key.shadow.mapSize.set(1024, 1024)
+    this.key.shadow.radius = 4
     this.key.shadow.bias = -0.0004
     const sc = this.key.shadow.camera
     sc.left = -4
@@ -79,7 +79,12 @@ export class Stage {
     this.hemi.groundColor.set(r.ground)
     this.hemi.intensity = r.hemiI
     this.renderer.toneMappingExposure = r.exposure
-    // yumuşak ortam yansıması: üst soğuk, alt sıcak
+    // yumuşak ortam yansıması: üst soğuk, alt sıcak (her ışık düzeni için bir kez üretilir)
+    const cached = this.envs.get(r)
+    if (cached) {
+      this.scene.environment = cached
+      return
+    }
     const envScene = new THREE.Scene()
     const g = new THREE.Mesh(
       new THREE.SphereGeometry(10, 24, 16),
@@ -91,10 +96,18 @@ export class Stage {
       }),
     )
     envScene.add(g)
-    this.env?.dispose()
-    this.env = this.pmrem.fromScene(envScene, 0.04).texture
-    this.scene.environment = this.env
+    const env = this.pmrem.fromScene(envScene, 0.04).texture
+    g.geometry.dispose()
+    ;(g.material as THREE.Material).dispose()
+    this.envs.set(r, env)
+    this.scene.environment = env
     this.scene.environmentIntensity = 0.55
+  }
+
+  /** Dünya noktasının 2D tuvaldeki piksel konumu. */
+  project(p: THREE.Vector3) {
+    const v = p.clone().project(this.camera)
+    return { x: (v.x * 0.5 + 0.5) * this.w, y: (-v.y * 0.5 + 0.5) * this.h }
   }
 
   /** Işıkları sahnedeki hedef noktaya doğru gölge kamerası ile hizalar. */
@@ -109,7 +122,8 @@ export class Stage {
 
   dispose() {
     this.renderer.dispose()
-    this.env?.dispose()
+    for (const e of this.envs.values()) e.dispose()
+    this.envs.clear()
   }
 }
 
