@@ -55,6 +55,7 @@ const DIMS: Record<Who, Dims> = {
 }
 
 const SKIN = { adem: '#f0c39c', sena: '#f6d3b8' }
+const SKIRT = '#d9cab0'
 const rnd = (seed: number) => {
   const v = Math.sin(seed * 127.1 + 311.7) * 43758.5453
   return v - Math.floor(v)
@@ -118,19 +119,8 @@ function skinTexture(who: Who): THREE.CanvasTexture {
     sg.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = sg
     ctx.fillRect(U(8, w) - 100, V(30, h) - 100, 200, 200)
-    if (who === 'sena') {
-      // hafif çiller
-      ctx.fillStyle = 'rgba(170,100,70,0.35)'
-      for (let i = 0; i < 70; i++) {
-        const phi = (rnd(i) - 0.5) * 70
-        const e = -14 + (rnd(i + 99) - 0.5) * 18
-        ctx.beginPath()
-        ctx.arc(U(phi, w), V(e, h), 1.3, 0, Math.PI * 2)
-        ctx.fill()
-      }
-    }
     if (who === 'adem') {
-      // kısa, bakımlı kirli sakal ve bıyık
+      // fotoğraftaki gibi kısa ama dolgun, koyu kahve sakal ve bıyık
       const beard: [number, number][] = [
         [-92, 4], [-78, -4], [-58, -9], [-38, -12], [-20, -17], [-8, -19.5], [0, -18.5], [8, -19.5], [20, -17], [38, -12], [58, -9], [78, -4], [92, 4],
         [90, -30], [70, -62], [40, -84], [0, -90], [-40, -84], [-70, -62], [-90, -30],
@@ -140,19 +130,20 @@ function skinTexture(who: Who): THREE.CanvasTexture {
       smoothCurve(ctx, beard, w, h)
       ctx.clip()
       const bgrad = ctx.createLinearGradient(0, V(-4, h), 0, V(-70, h))
-      bgrad.addColorStop(0, 'rgba(105,84,68,0.0)')
-      bgrad.addColorStop(0.25, 'rgba(105,84,68,0.38)')
-      bgrad.addColorStop(1, 'rgba(78,60,48,0.62)')
+      bgrad.addColorStop(0, 'rgba(40,32,28,0.0)')
+      bgrad.addColorStop(0.12, 'rgba(40,32,28,0.66)')
+      bgrad.addColorStop(0.35, 'rgba(32,25,21,0.88)')
+      bgrad.addColorStop(1, 'rgba(28,22,19,0.93)')
       ctx.fillStyle = bgrad
       ctx.fillRect(0, 0, w, h)
-      // kıl dokusu: aşağı doğru sıklaşır
-      for (let i = 0; i < 9000; i++) {
+      // kıl dokusu: sık, koyu, yer yer açık tel
+      for (let i = 0; i < 16000; i++) {
         const x = rnd(i * 3) * w
         const y = V(-4, h) + rnd(i * 5 + 1) * (V(-92, h) - V(-4, h))
         const k = (y - V(-4, h)) / (V(-92, h) - V(-4, h))
-        if (rnd(i * 7 + 2) > 0.25 + k * 0.75) continue
-        ctx.fillStyle = rnd(i) > 0.45 ? 'rgba(34,24,18,0.5)' : 'rgba(150,125,105,0.38)'
-        ctx.fillRect(x, y, 1.5, 2.4)
+        if (rnd(i * 7 + 2) > 0.45 + k * 0.55) continue
+        ctx.fillStyle = rnd(i) > 0.3 ? 'rgba(14,10,8,0.55)' : 'rgba(110,98,90,0.35)'
+        ctx.fillRect(x, y, 1.6, 2.8)
       }
       ctx.restore()
     }
@@ -262,8 +253,9 @@ export class Humanoid {
   constructor(who: Who) {
     this.who = who
     this.d = DIMS[who]
-    this.shirtColor = who === 'adem' ? '#f0861f' : '#b4c99b'
-    this.pantsColor = who === 'adem' ? '#b3a68c' : '#b4c99b'
+    // fotoğraftaki kıyafetler: Adem açık gri uzun kollu tişört, Sena lacivert bluz
+    this.shirtColor = who === 'adem' ? '#d4d4d0' : '#25366e'
+    this.pantsColor = who === 'adem' ? '#3c4a66' : SKIRT
     this.group.add(this.torso)
     this.buildMaterials()
     this.buildTorso()
@@ -309,25 +301,26 @@ export class Humanoid {
     neck.position.set(0, d.torso + d.neck * 0.3, 0)
     this.torso.add(neck)
     if (adem) {
-      const buttons = new THREE.MeshStandardMaterial({ color: '#fff3e0', roughness: 0.4 })
-      for (let i = 0; i < 3; i++) {
-        const b = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8), buttons)
-        b.position.set(0, d.torso - 0.16 - i * 0.09, 0.62 * 0.2 + 0.004)
-        this.torso.add(b)
-      }
-      // yaka
-      for (const sd of [-1, 1]) {
-        const c = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.012, 0.11), this.cloth('#dd7410', 0.7))
-        c.position.set(sd * 0.075, d.torso - 0.01, 0.1)
-        c.rotation.set(0.5, 0, sd * 0.55)
-        this.torso.add(c)
-      }
+      // bisiklet yaka
+      const rib = new THREE.Mesh(new THREE.TorusGeometry(d.R * 0.6, 0.011, 8, 28), this.cloth('#c4c4c0', 0.8))
+      rib.scale.z = 0.8
+      rib.position.set(0, d.torso + 0.005, 0.005)
+      rib.rotation.x = Math.PI / 2 - 0.18
+      this.torso.add(rib)
     } else {
-      // kolye
-      const nk = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.003, 6, 28, Math.PI), new THREE.MeshStandardMaterial({ color: '#e8c36a', metalness: 0.9, roughness: 0.25 }))
-      nk.position.set(0, d.torso - 0.01, 0.1)
-      nk.rotation.set(-0.1, 0, Math.PI)
-      this.torso.add(nk)
+      // bluzun V yakası ve yaka kenarları
+      for (const sd of [-1, 1]) {
+        const lap = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.012), this.cloth('#1d2c5e', 0.7))
+        lap.position.set(sd * 0.032, d.torso - 0.05, 0.1)
+        lap.rotation.set(-0.35, 0, sd * 0.42)
+        this.torso.add(lap)
+      }
+      const v = new THREE.Mesh(new THREE.CircleGeometry(0.045, 3), this.flatSkin)
+      v.scale.set(0.9, 1.4, 1)
+      v.rotation.z = -Math.PI / 2
+      v.position.set(0, d.torso - 0.03, 0.104)
+      v.rotation.x = -0.3
+      this.torso.add(v)
     }
     // pelvis: pantolon / etek
     if (adem) {
@@ -336,7 +329,7 @@ export class Humanoid {
       pelvis.position.y = -0.04
       this.torso.add(pelvis)
     } else {
-      const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.26, 0.42, 36, 1, true), this.cloth('#b4c99b', 0.82))
+      const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.26, 0.42, 36, 1, true), this.cloth(SKIRT, 0.82))
       skirt.material.side = THREE.DoubleSide
       skirt.scale.z = 0.8
       skirt.position.y = -0.17
@@ -349,8 +342,8 @@ export class Humanoid {
     const d = this.d
     const R = d.R
     const adem = this.who === 'adem'
-    const a = R * (adem ? 0.95 : 0.9)
-    const b = R * 1.08
+    const a = R * (adem ? 0.95 : 0.86)
+    const b = R * (adem ? 1.08 : 1.14)
     const c = R * (adem ? 1.0 : 0.96)
     const geo = new THREE.SphereGeometry(1, 56, 42)
     const pos = geo.attributes.position
@@ -363,7 +356,7 @@ export class Humanoid {
       let Z = z * c
       if (y < 0) {
         const k = -y
-        const jaw = adem ? 0.2 : 0.25
+        const jaw = adem ? 0.2 : 0.3
         X *= 1 - jaw * Math.pow(k, 1.7)
         Z *= 1 - 0.12 * k * k
         Y *= 1 + 0.05 * k
@@ -393,17 +386,23 @@ export class Humanoid {
     // kulaklar
     for (const sd of [-1, 1]) {
       const ear = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 14), this.flatSkin)
-      ear.scale.set(R * 0.07, R * 0.2, R * 0.13)
-      ear.position.set(sd * a * 0.99, -R * 0.02, -R * 0.05)
+      ear.scale.set(R * 0.09, adem ? R * 0.25 : R * 0.21, R * 0.15)
+      ear.position.set(sd * a * (adem ? 1.06 : 1.0), -R * 0.04, -R * 0.06)
       ear.rotation.y = sd * 0.3
       this.head.add(ear)
+      if (!adem) {
+        // küçük altın küpe
+        const ring = new THREE.Mesh(new THREE.SphereGeometry(R * 0.045, 12, 10), new THREE.MeshStandardMaterial({ color: '#e8c36a', metalness: 0.9, roughness: 0.25 }))
+        ring.position.set(sd * a * 1.0, -R * 0.2, -R * 0.02)
+        this.head.add(ring)
+      }
     }
 
     // gözler
     const eyeX = R * 0.37
     const eyeY = R * 0.06
-    const eR = R * 0.19
-    const irisTex = irisTexture(adem ? '#8c7640' : '#6a4326')
+    const eR = R * (adem ? 0.15 : 0.16)
+    const irisTex = irisTexture(adem ? '#6e4524' : '#6b4a2a')
     for (const sd of [-1, 1]) {
       const zs = surf(sd * eyeX, eyeY)
       const eyeG = new THREE.Group()
@@ -450,15 +449,15 @@ export class Humanoid {
     // kaşlar
     for (const sd of [-1, 1]) {
       const zb = surf(sd * eyeX, R * 0.38)
-      const thick = adem ? R * 0.062 : R * 0.04
+      const thick = adem ? R * 0.062 : R * 0.035
       const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-sd * R * 0.19, -R * 0.015, 0),
-        new THREE.Vector3(-sd * R * 0.06, R * 0.03, 0),
-        new THREE.Vector3(sd * R * 0.08, R * 0.04, 0),
-        new THREE.Vector3(sd * R * 0.22, R * (adem ? 0.0 : -0.01), 0),
+        new THREE.Vector3(-sd * R * 0.2, -R * 0.015, 0),
+        new THREE.Vector3(-sd * R * 0.06, R * (adem ? 0.03 : 0.04), 0),
+        new THREE.Vector3(sd * R * 0.1, R * (adem ? 0.04 : 0.06), 0),
+        new THREE.Vector3(sd * R * 0.25, R * (adem ? 0.0 : -0.04), 0),
       ])
       const geoB = new THREE.TubeGeometry(curve, 16, thick, 8, false)
-      const m = new THREE.Mesh(geoB, new THREE.MeshStandardMaterial({ color: adem ? '#2b1e17' : '#7d5230', roughness: 0.7 }))
+      const m = new THREE.Mesh(geoB, new THREE.MeshStandardMaterial({ color: adem ? '#241912' : '#4e3626', roughness: 0.7 }))
       m.scale.z = 0.55
       m.position.set(sd * eyeX, R * 0.36, zb + R * 0.012)
       m.rotation.y = sd * 0.1
@@ -471,13 +470,13 @@ export class Humanoid {
     const noseY = -R * 0.2
     const zn = surf(0, noseY)
     this.nose.position.set(0, noseY, zn)
-    const tipS = adem ? [R * 0.13, R * 0.105, R * 0.115] : [R * 0.1, R * 0.085, R * 0.1]
+    const tipS = adem ? [R * 0.15, R * 0.12, R * 0.13] : [R * 0.09, R * 0.08, R * 0.09]
     const tip = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 16), this.flatSkin)
     tip.scale.set(tipS[0], tipS[1], tipS[2])
     tip.position.set(0, 0, R * 0.04)
     this.nose.add(tip)
-    const bridge = new THREE.Mesh(new THREE.CapsuleGeometry(adem ? R * 0.055 : R * 0.042, R * 0.26, 4, 10), this.flatSkin)
-    bridge.position.set(0, R * 0.17, R * 0.0)
+    const bridge = new THREE.Mesh(new THREE.CapsuleGeometry(adem ? R * 0.07 : R * 0.04, adem ? R * 0.32 : R * 0.28, 4, 10), this.flatSkin)
+    bridge.position.set(0, R * 0.17, -R * 0.035)
     bridge.rotation.x = -0.12
     this.nose.add(bridge)
     for (const sd of [-1, 1]) {
@@ -520,21 +519,22 @@ export class Humanoid {
       // M saç çizgisi: şakaklar geride, merkez hafif öne
       const E: Hairline = (phi) => {
         const p = Math.abs(phi)
-        if (p <= 22) return 50 + (p / 22) * 6
-        if (p <= 48) return 56 + ((p - 22) / 26) * 6
-        if (p <= 66) return 62 - ((p - 48) / 18) * 18
-        if (p <= 80) return 44 - ((p - 66) / 14) * 16
-        if (p <= 94) return 28 - ((p - 80) / 14) * 20
-        return 8 - ((p - 94) / 86) * 34
+        // geniş, yüksek alın; şakaklar belirgin geride
+        if (p <= 15) return 58
+        if (p <= 40) return 58 + ((p - 15) / 25) * 10
+        if (p <= 58) return 68 - ((p - 40) / 18) * 30
+        if (p <= 75) return 38 - ((p - 58) / 17) * 26
+        if (p <= 95) return 12 - ((p - 75) / 20) * 8
+        return 4 - ((p - 95) / 85) * 30
       }
-      const map = hairTexture('#3a2b22', '#7a604b', '#241a14', E, false)
-      const mat = new THREE.MeshPhysicalMaterial({ map, alphaMap: undefined, transparent: true, alphaTest: 0.5, roughness: 0.42, sheen: 0.6, sheenColor: new THREE.Color('#d8b080'), sheenRoughness: 0.5 })
+      const map = hairTexture('#2a1f19', '#4a3a30', '#17110d', E, false)
+      const mat = new THREE.MeshPhysicalMaterial({ map, transparent: true, alphaTest: 0.5, roughness: 0.5, sheen: 0.25, sheenColor: new THREE.Color('#5a4434'), sheenRoughness: 0.6 })
       const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 36), mat)
       shell.scale.set(a * 1.1, b * 1.1, c * 1.1)
       shell.position.y = R * 0.015
       this.head.add(shell)
       // saç hacmi: geriye taranmış, hafif kabarık kısa saç
-      const hm = new THREE.MeshPhysicalMaterial({ color: '#3b2c23', roughness: 0.42, sheen: 0.6, sheenColor: new THREE.Color('#d8b080'), sheenRoughness: 0.5 })
+      const hm = new THREE.MeshPhysicalMaterial({ color: '#2a1f19', roughness: 0.5, sheen: 0.25, sheenColor: new THREE.Color('#5a4434'), sheenRoughness: 0.5 })
       const clump = (sx: number, sy: number, sz: number, x: number, y: number, z: number, rx = 0, rz = 0) => {
         const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), hm)
         m.scale.set(sx, sy, sz)
@@ -543,9 +543,8 @@ export class Humanoid {
         this.head.add(m)
       }
       // tepe hacmi kabuğun içine gömülü durur, yalnızca hafif bir kabarıklık verir (kenarı bere gibi taşmaz)
-      clump(a * 0.8, b * 0.5, c * 0.85, 0, b * 0.75, -c * 0.08, -0.1)
-      clump(a * 0.62, R * 0.2, c * 0.5, 0, b * 0.88, c * 0.4, -0.62)
-      clump(a * 0.42, R * 0.13, c * 0.3, a * 0.1, b * 0.84, c * 0.6, -0.9)
+      clump(a * 0.8, b * 0.5, c * 0.72, 0, b * 0.72, -c * 0.3, -0.1)
+      clump(a * 0.46, R * 0.16, c * 0.4, 0, b * 0.98, c * 0.12, -0.4)
     } else {
       const E: Hairline = (phi) => {
         const p = Math.abs(phi)
@@ -555,16 +554,16 @@ export class Humanoid {
         if (p <= 80) return -2 - ((p - 45) / 35) * 22
         return -24 - ((p - 80) / 100) * 18
       }
-      const map = hairTexture('#c79a5e', '#ecd3a2', '#8d6338', E, true)
-      const mat = new THREE.MeshPhysicalMaterial({ map, transparent: true, alphaTest: 0.5, roughness: 0.38, sheen: 0.7, sheenColor: new THREE.Color('#ffd9a0'), sheenRoughness: 0.4 })
+      const map = hairTexture('#c9a066', '#ead19c', '#5e4330', E, true)
+      const mat = new THREE.MeshPhysicalMaterial({ map, transparent: true, alphaTest: 0.5, roughness: 0.42, sheen: 0.35, sheenColor: new THREE.Color('#c99a5a'), sheenRoughness: 0.4 })
       const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 36), mat)
       shell.scale.set(a * 1.05, b * 1.06, c * 1.06)
       shell.position.y = R * 0.01
       this.head.add(shell)
       // omuzlara uzanan düz uzun saç: arkaya sarılan, uçları daralan yumuşak hacim
       const back = new THREE.Group()
-      const hairMapLong = hairTexture('#c79a5e', '#f1d9a8', '#8d6338', () => -90, true)
-      const longMat = new THREE.MeshPhysicalMaterial({ map: hairMapLong, roughness: 0.4, sheen: 0.7, sheenColor: new THREE.Color('#ffe2a8'), side: THREE.DoubleSide })
+      const hairMapLong = hairTexture('#c9a066', '#efd8a6', '#7a5a3c', () => -90, true)
+      const longMat = new THREE.MeshPhysicalMaterial({ map: hairMapLong, roughness: 0.44, sheen: 0.35, sheenColor: new THREE.Color('#c99a5a'), side: THREE.DoubleSide })
       const prof: THREE.Vector2[] = [
         [0.3, 0.75], [0.9, 0.62], [1.12, 0.1], [1.2, -0.7], [1.18, -1.8], [1.1, -2.9], [0.98, -3.7], [0.82, -4.2],
       ].map(([r, y]) => new THREE.Vector2(r * R, y * R))
@@ -607,8 +606,8 @@ export class Humanoid {
     }
     const armR = adem ? 0.036 : 0.03
     for (let i = 0; i < 2; i++) {
-      const up = capsule(armR * 1.1, d.upper - armR * 2, skin)
-      const fo = capsule(armR * 0.92, d.fore - armR * 2, skin)
+      const up = capsule(armR * (adem ? 1.4 : 1.1), d.upper - armR * 2, adem ? this.cloth(this.shirtColor, 0.74) : skin)
+      const fo = capsule(armR * (adem ? 1.25 : 0.92), d.fore - armR * 2, adem ? this.cloth(this.shirtColor, 0.74) : skin)
       const sl = capsule(armR * 1.55, d.upper * 0.55, this.cloth(this.shirtColor, 0.74))
       this.group.add(up, fo, sl)
       this.upperArms.push(up)
@@ -683,7 +682,7 @@ export class Humanoid {
       this.skirt.position.y = seated ? -0.03 : -0.17
       for (const th of this.thighs) {
         const m = th.material as THREE.MeshPhysicalMaterial
-        m.color.set(seated ? '#b4c99b' : '#f1c8aa')
+        m.color.set(seated ? SKIRT : '#f1c8aa')
         m.sheen = seated ? 0 : 0.8
         th.scale.set(seated ? 1.35 : 1, 1, seated ? 1.35 : 1)
       }
@@ -735,7 +734,7 @@ export class Humanoid {
     const closed = Math.max(e.blink, happy ? 1 : 0, e.squint * 0.7)
     for (const eye of this.eyes) {
       eye.ball.rotation.set(-e.look.y * 0.35, e.look.x * 0.5, 0)
-      const open = -0.98
+      const open = adem ? -0.35 : -0.55
       eye.lidU.rotation.x = open + (1.52 - open) * Math.min(1, closed)
       eye.lidL.rotation.x = 1.0 + (-1.1 - 1.0) * Math.min(1, happy ? 0.55 : e.squint * 0.5 + (closed > 0.9 ? 0.5 : 0))
       eye.happy.visible = happy
@@ -744,7 +743,7 @@ export class Humanoid {
     }
     for (let i = 0; i < 2; i++) {
       const b = this.brows[i]
-      b.position.y = R * 0.36 + e.brow * R * 0.07 + e.joy * R * 0.05
+      b.position.y = R * (adem ? 0.33 : 0.31) + e.brow * R * 0.07 + e.joy * R * 0.05
       b.rotation.z = (i === 0 ? 1 : -1) * e.brow * -0.1
     }
     // ağız çıkartması
@@ -757,29 +756,44 @@ export class Humanoid {
     const cx = w / 2
     const cy = h * 0.5
     const mw = w * (0.36 + smile * 0.06 + e.joy * 0.05)
-    const lipCol = adem ? '#e9a79a' : '#d6676a'
-    const lipDark = adem ? '#c9766c' : '#b2484e'
+    const lipCol = adem ? '#d98e84' : '#d9737a'
+    const lipDark = adem ? '#c2766d' : '#c25a62'
     const corner = smile * 20
     if (open < 0.1) {
-      // kapalı gülümseme
+      // kapalı, dolgun dudaklı gülümseme (fotoğraftaki gibi)
+      const lw = mw * 0.82
+      const dip = 6 + corner * 0.5
+      const seam = (x: number) => cy - corner + (1 - ((x - cx) / lw) ** 2) * (corner + dip)
+      // üst dudak: ortada hafif yay
+      ctx.fillStyle = lipDark
+      ctx.beginPath()
+      ctx.moveTo(cx - lw, seam(cx - lw))
+      ctx.quadraticCurveTo(cx - lw * 0.5, cy - 30 + corner * 0.2, cx - lw * 0.12, cy - 26 + corner * 0.4)
+      ctx.quadraticCurveTo(cx, cy - 20 + corner * 0.4, cx + lw * 0.12, cy - 26 + corner * 0.4)
+      ctx.quadraticCurveTo(cx + lw * 0.5, cy - 30 + corner * 0.2, cx + lw, seam(cx + lw))
+      ctx.quadraticCurveTo(cx, seam(cx) + 4, cx - lw, seam(cx - lw))
+      ctx.fill()
+      // alt dudak: daha dolgun
+      ctx.fillStyle = lipCol
+      ctx.beginPath()
+      ctx.moveTo(cx - lw * 0.96, seam(cx - lw))
+      ctx.quadraticCurveTo(cx, seam(cx) + 2, cx + lw * 0.96, seam(cx + lw))
+      ctx.quadraticCurveTo(cx + lw * 0.55, seam(cx) + 44, cx, seam(cx) + 46)
+      ctx.quadraticCurveTo(cx - lw * 0.55, seam(cx) + 44, cx - lw * 0.96, seam(cx - lw))
+      ctx.fill()
+      // dudak çizgisi ve parlama
       ctx.lineCap = 'round'
-      ctx.strokeStyle = lipDark
-      ctx.lineWidth = 15
+      ctx.strokeStyle = adem ? '#7e3f38' : '#8f343c'
+      ctx.lineWidth = 4
       ctx.beginPath()
-      ctx.moveTo(cx - mw, cy - corner)
-      ctx.quadraticCurveTo(cx, cy + 14 + corner * 0.8, cx + mw, cy - corner)
+      ctx.moveTo(cx - lw, seam(cx - lw))
+      ctx.quadraticCurveTo(cx, seam(cx) + 6, cx + lw, seam(cx + lw))
       ctx.stroke()
-      ctx.strokeStyle = lipCol
-      ctx.lineWidth = 11
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)'
+      ctx.lineWidth = 5
       ctx.beginPath()
-      ctx.moveTo(cx - mw * 0.92, cy - corner * 0.9 + 2)
-      ctx.quadraticCurveTo(cx, cy + 20 + corner * 0.8, cx + mw * 0.92, cy - corner * 0.9 + 2)
-      ctx.stroke()
-      ctx.strokeStyle = 'rgba(255,255,255,0.4)'
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.moveTo(cx - mw * 0.3, cy + 17 + corner * 0.8)
-      ctx.quadraticCurveTo(cx, cy + 21 + corner * 0.8, cx + mw * 0.3, cy + 17 + corner * 0.8)
+      ctx.moveTo(cx - lw * 0.3, seam(cx) + 26)
+      ctx.quadraticCurveTo(cx, seam(cx) + 32, cx + lw * 0.3, seam(cx) + 26)
       ctx.stroke()
     } else {
       const hh = 14 + open * 68
