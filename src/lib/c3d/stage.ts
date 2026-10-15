@@ -104,6 +104,22 @@ export class Stage {
     this.scene.environmentIntensity = 0.55
   }
 
+  /** Işık renklerini iki düzen arasında yumuşakça kaydırır (ortam yansıması `setLights`'taki gibi kalır). */
+  mixLights(a: LightRig, b: LightRig, k: number) {
+    const c = (x: string, y: string) => new THREE.Color(x).lerp(new THREE.Color(y), k)
+    const n = (x: number, y: number) => x + (y - x) * k
+    this.key.color.copy(c(a.key, b.key))
+    this.key.intensity = n(a.keyI, b.keyI)
+    this.rim.color.copy(c(a.rim, b.rim))
+    this.rim.intensity = n(a.rimI, b.rimI)
+    this.fill.color.copy(c(a.fill, b.fill))
+    this.fill.intensity = n(a.fillI, b.fillI)
+    this.hemi.color.copy(c(a.sky, b.sky))
+    this.hemi.groundColor.copy(c(a.ground, b.ground))
+    this.hemi.intensity = n(a.hemiI, b.hemiI)
+    this.renderer.toneMappingExposure = n(a.exposure, b.exposure)
+  }
+
   /** Dünya noktasının 2D tuvaldeki piksel konumu. */
   project(p: THREE.Vector3) {
     const v = p.clone().project(this.camera)
@@ -132,6 +148,14 @@ export const SUNSET: LightRig = {
   rim: '#ff8f5a', rimI: 2.2, rimPos: [3, 2.5, -4],
   fill: '#7f8cff', fillI: 0.55,
   sky: '#9a86d8', ground: '#e8a27a', hemiI: 0.8, exposure: 1.1,
+}
+
+/** Gün batımından sonra: pembe-mor alacakaranlık */
+export const DUSK: LightRig = {
+  key: '#ff9c86', keyI: 2.4, keyPos: [4, 3.2, 3],
+  rim: '#b98cff', rimI: 2.0, rimPos: [3, 2.5, -4],
+  fill: '#6f7cff', fillI: 0.65,
+  sky: '#7a6ab8', ground: '#c9846a', hemiI: 0.8, exposure: 1.08,
 }
 
 export const NIGHT: LightRig = {

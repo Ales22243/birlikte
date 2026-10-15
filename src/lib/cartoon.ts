@@ -98,6 +98,8 @@ interface SceneDef {
   s: number
   e: number
   draw: (ctx: CanvasRenderingContext2D, t: number) => void
+  /** Önceki sahnenin üstüne bindirilir (kendisi çizer), geçiş yapılmaz. */
+  over?: boolean
 }
 
 const FONT_SERIF = "Fraunces, 'Iowan Old Style', Georgia, serif"
@@ -118,8 +120,8 @@ export class Cartoon {
     this.scenes = [
       { s: 0, e: 12.6, draw: (c, t) => this.chairs(c, t) },
       { s: 11.4, e: 27.8, draw: (c, t) => this.walk(c, t) },
-      { s: 26.6, e: 44.4, draw: (c, t) => this.shack(c, t) },
-      { s: 43.2, e: 47, draw: (c, t) => this.endCard(c, t) },
+      { s: 26.6, e: 47, draw: (c, t) => this.shack(c, t) },
+      { s: 43.2, e: 47, draw: (c, t) => this.endCard(c, t), over: true },
     ]
   }
 
@@ -128,7 +130,8 @@ export class Cartoon {
   async prepare() {
     this.w3 = await loadWorld()
     // gölgelendiriciler ilk karede derlenip kayıtta takılma yapmasın diye her sahne bir kez çizilir
-    if (this.w3) for (const [k, t] of [['chairs', 0], ['walk', 12], ['shack', 27]] as const) this.w3.render(k, t)  }
+    if (this.w3) for (const [k, t] of [['chairs', 0], ['walk', 12], ['shack', 27]] as const) this.w3.render(k, t)
+  }
   prefetch(_t: number) {
     void _t
   }
@@ -146,7 +149,29 @@ export class Cartoon {
 
   /** 3D karakterleri ve yakın nesneleri o anki 2D dönüşümle birlikte tuvale bindirir. */
   private people3d(ctx: CanvasRenderingContext2D, kind: SceneKind, t: number) {
+    this.defocus(ctx)
     ctx.drawImage(this.w3!.render(kind, t), 0, 0, CW, CH)
+  }
+
+  private soft?: HTMLCanvasElement
+
+  /** Alan derinliği: o ana kadar çizilen arka planı küçültüp büyüterek yumuşatır (her cihazda çalışır, ucuz). */
+  private defocus(ctx: CanvasRenderingContext2D) {
+    if (!this.soft) {
+      this.soft = document.createElement('canvas')
+      this.soft.width = CW / 4
+      this.soft.height = CH / 4
+    }
+    const s = this.soft.getContext('2d')!
+    s.imageSmoothingQuality = 'high'
+    s.clearRect(0, 0, this.soft.width, this.soft.height)
+    s.drawImage(ctx.canvas, 0, 0, this.soft.width, this.soft.height)
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.globalAlpha *= 0.7
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(this.soft, 0, 0, CW, CH)
+    ctx.restore()
   }
 
   draw(ctx: CanvasRenderingContext2D, t: number) {
@@ -155,7 +180,7 @@ export class Cartoon {
     for (let i = 0; i < this.scenes.length; i++) if (t >= this.scenes[i].s) k = i
     const cur = this.scenes[k]
     const FADE = 1.2
-    if (k > 0 && t < cur.s + FADE) {
+    if (k > 0 && t < cur.s + FADE && !cur.over) {
       // Eski sahne akmaya devam ederken yenisi yumuşakça belirir; kesme yok.
       this.scenes[k - 1].draw(ctx, t)
       ctx.globalAlpha = smooth((t - cur.s) / FADE)
@@ -1362,29 +1387,40 @@ export class Cartoon {
   // ---------- kapanış ----------
   private endCard(ctx: CanvasRenderingContext2D, t: number) {
     const u = t - 43.2
-    const g = ctx.createLinearGradient(0, 0, 0, CH)
-    g.addColorStop(0, '#2a1440')
-    g.addColorStop(1, '#0e0616')
-    ctx.fillStyle = g
+    // masadaki çift görünmeye devam eder; kenarlar ve üst yavaşça kararır
+    this.shack(ctx, t)
+    const a = smooth(u / 1.6)
+    const v = ctx.createRadialGradient(CW / 2, CH * 0.72, CH * 0.12, CW / 2, CH * 0.6, CH * 0.75)
+    v.addColorStop(0, 'rgba(14,6,22,0)')
+    v.addColorStop(1, `rgba(14,6,22,${0.85 * a})`)
+    ctx.fillStyle = v
     ctx.fillRect(0, 0, CW, CH)
+    const top = ctx.createLinearGradient(0, 0, 0, CH * 0.5)
+    top.addColorStop(0, `rgba(14,6,22,${0.8 * a})`)
+    top.addColorStop(1, 'rgba(14,6,22,0)')
+    ctx.fillStyle = top
+    ctx.fillRect(0, 0, CW, CH * 0.5)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    const a = smooth(u / 0.9)
-    ctx.globalAlpha = a
+    const ta = smooth((u - 0.3) / 0.9)
+    ctx.globalAlpha = ta
     const beat = 1 + 0.04 * Math.max(0, Math.sin(t * 6.5))
-    heartAt(ctx, this.heartPath, CW / 2, 470, 300 * beat, '#ff7fa5', 0.9)
+    heartAt(ctx, this.heartPath, CW / 2, 270, 230 * beat, '#ff7fa5', 0.9)
     ctx.fillStyle = '#fff'
-    ctx.font = `300 120px ${FONT_SERIF}`
-    ctx.fillText(this.days.toLocaleString('tr-TR'), CW / 2, 450)
-    ctx.font = `italic 400 40px ${FONT_SERIF}`
-    ctx.fillText('gün', CW / 2, 548)
-    ctx.globalAlpha = a * smooth((u - 0.7) / 0.8)
+    ctx.font = `300 92px ${FONT_SERIF}`
+    ctx.fillText(this.days.toLocaleString('tr-TR'), CW / 2, 254)
+    ctx.font = `italic 400 34px ${FONT_SERIF}`
+    ctx.fillText('gün', CW / 2, 330)
+    ctx.globalAlpha = ta * smooth((u - 0.9) / 0.8)
+    ctx.shadowColor = 'rgba(10,4,20,0.7)'
+    ctx.shadowBlur = 16
     ctx.fillStyle = '#ffe3ea'
-    ctx.font = `500 64px ${FONT_SERIF}`
-    ctx.fillText(`${this.input.b} & ${this.input.a}`, CW / 2, 820)
-    ctx.font = `italic 400 44px ${FONT_SERIF}`
-    ctx.fillText('Daha çok anımız olacak.', CW / 2, 910)
+    ctx.font = `500 58px ${FONT_SERIF}`
+    ctx.fillText(`${this.input.b} & ${this.input.a}`, CW / 2, 445)
+    ctx.font = `italic 400 38px ${FONT_SERIF}`
+    ctx.fillText('Daha çok anımız olacak.', CW / 2, 510)
+    ctx.shadowBlur = 0
     ctx.globalAlpha = 1
-    this.hearts(ctx, t, 360, 760, 43.4, 47, 0.45)
+    this.hearts(ctx, t, 360, 780, 43.4, 47, 0.45)
   }
 }

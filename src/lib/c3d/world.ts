@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { NIGHT, Stage, SUNSET, type LightRig } from './stage'
+import { DUSK, NIGHT, Stage, SUNSET, type LightRig } from './stage'
 import { Humanoid, NEUTRAL, type Expr, type Limb, type Pose3 } from './humanoid'
 
 export type SceneKind = 'chairs' | 'walk' | 'shack'
@@ -121,20 +121,20 @@ export class World {
       }
       g.add(ch)
     }
-    mkChair(-0.42, '#2f7fb8')
-    mkChair(0.42, '#e2566b')
+    mkChair(-0.45, '#2f7fb8')
+    mkChair(0.45, '#e2566b')
     // küçük yan masa ve çay bardakları
     const table = new THREE.Group()
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.035, 28), new THREE.MeshStandardMaterial({ color: '#b98557', roughness: 0.6 }))
-    top.position.y = 0.5
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.5, 12), wood)
-    post.position.y = 0.25
-    const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.03, 20), wood)
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 24), new THREE.MeshStandardMaterial({ color: '#b98557', roughness: 0.6 }))
+    top.position.y = 0.44
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.026, 0.44, 12), wood)
+    post.position.y = 0.22
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.02, 20), wood)
     foot.position.y = 0.015
     table.add(top, post, foot)
-    table.position.set(0, 0, -0.75)
+    table.position.set(0, 0, -0.14)
     g.add(table)
-    for (const dx of [-0.08, 0.08]) {
+    for (const dx of [-0.045, 0.045]) {
       const gl = new THREE.Group()
       const body = new THREE.Mesh(
         new THREE.CylinderGeometry(0.03, 0.022, 0.08, 18, 1, true),
@@ -143,7 +143,7 @@ export class World {
       const tea = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.02, 0.06, 18), new THREE.MeshStandardMaterial({ color: '#b8481a', roughness: 0.3, emissive: '#5a1d05', emissiveIntensity: 0.4 }))
       tea.position.y = -0.008
       gl.add(body, tea)
-      gl.position.set(dx, 0.558, -0.75)
+      gl.position.set(dx, 0.495, -0.2)
       g.add(gl)
     }
     // kumdaki terlikler
@@ -295,7 +295,7 @@ export class World {
       const lIsPlusX = -Math.cos(yaw) > 0
       // iç el: önce kolçakta, sonra masanın üstünde sevgilinin eliyle buluşur
       const rest = V(inner * 0.3, 0.55, -0.02)
-      const meet = V(-cx - inner * 0.03, 0.6 + Math.sin(t * 2) * 0.01, -0.1)
+      const meet = V(-cx - inner * 0.03, 0.62 + Math.sin(t * 2) * 0.01, -0.06)
       const innerT = mix(rest, meet, reach)
       const innerL = limb(innerT, V(inner * 0.4, -0.6, 0.5))
       const outer = limb(V(-inner * 0.3, 0.55, -0.02), V(-inner * 0.6, -0.4, 0.5))
@@ -317,12 +317,12 @@ export class World {
         footYaw: Math.PI,
       }
     }
-    this.adem.group.position.set(-0.42, 0, 0)
-    this.sena.group.position.set(0.42, 0, 0)
+    this.adem.group.position.set(-0.45, 0, 0)
+    this.sena.group.position.set(0.45, 0, 0)
     this.adem.setSauce(false)
     this.sena.setSauce(false)
-    this.adem.update(mk('adem', turnA, -0.42), this.expr(t, 0.4, { smile: 0.6 + turnA * 0.3, joy: laugh, mouth: laugh * 1.1, look: { x: -turnA * 0.35, y: 0.05 } }), t)
-    this.sena.update(mk('sena', turnS, 0.42), this.expr(t, 1.4, { smile: 0.6 + turnS * 0.3, joy: laugh, mouth: laugh * 1.0, look: { x: turnS * 0.35, y: 0.05 } }), t)
+    this.adem.update(mk('adem', turnA, -0.45), this.expr(t, 0.4, { smile: 0.6 + turnA * 0.3, joy: laugh, mouth: laugh * 1.1, look: { x: -turnA * 0.35, y: 0.05 } }), t)
+    this.sena.update(mk('sena', turnS, 0.45), this.expr(t, 1.4, { smile: 0.6 + turnS * 0.3, joy: laugh, mouth: laugh * 1.0, look: { x: turnS * 0.35, y: 0.05 } }), t)
     const st = this.stage
     const k = smooth(t / 12.6)
     st.camera.fov = 38
@@ -392,6 +392,8 @@ export class World {
     this.sena.update(mk(this.sena, 1, Math.PI * 0.12), this.expr(t, 1.4, { smile: 0.85, joy: joy, mouth: 0.25 + joy * 0.8, look: { x: -0.35 * glance, y: 0.15 } }), t)
     const st = this.stage
     const k = smooth((t - 11.4) / 16.4)
+    // gün batımından alacakaranlığa
+    st.mixLights(SUNSET, DUSK, k)
     st.camera.fov = 30
     st.camera.position.set(0.2 - k * 0.4, 1.15, 6.2 - k * 0.5)
     st.camera.lookAt(0, 1.12, 0)
@@ -434,6 +436,8 @@ export class World {
       const clinkLocal = clinkW.clone().sub(h.group.position).add(V(-inner * 0.045, 0, 0))
       let innerT = mix(mix(rest, lift, laugh > 0.01 ? 0.5 * laugh : Math.min(1, eat.reach * 2)), mouth, eat.reach)
       innerT = mix(innerT, clinkLocal, cheers)
+      // Adem dürümü tutan eliyle Sena'nın burnundaki sosu gösterir
+      if (inner === 1) innerT = mix(innerT, V(0.46, 1.1, 0.3), point)
       const innerL = limb(innerT, V(-inner * 0.2, -1, -0.3))
       // dış el: masada durur; gülerken karnını tutar
       const outerRest = V(-inner * 0.24, 0.8, 0.32)
@@ -483,8 +487,10 @@ export class World {
     const st = this.stage
     const k = smooth(d / 17.8)
     st.camera.fov = 34
-    st.camera.position.set(0, 1.36 - k * 0.04, 3.9 - k * 0.45)
-    st.camera.lookAt(0, 1.3, 0.1)
+    // kapanışta kamera yavaşça geri çekilir, üstte başlığa yer açılır
+    const back = smooth((d - 16.2) / 4.2)
+    st.camera.position.set(0, 1.36 - k * 0.04 + back * 0.2, 3.9 - k * 0.45 + back * 1.5)
+    st.camera.lookAt(0, 1.3 + back * 0.35, 0.1)
     st.camera.updateProjectionMatrix()
     st.aim(0, 0.9, 0.2)
     const meet = this.glasses[0].position.clone().add(this.glasses[1].position).multiplyScalar(0.5).add(V(0, 0.05, 0))
