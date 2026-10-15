@@ -27,8 +27,8 @@ const STYLES: { id: AnimStyle; label: string }[] = [
 
 /** Uygulamayla birlikte gelen hazır videolar (Kling ile üretildi). silent: kendi sesi (İngilizce konuşma) yerine müzik çalar. */
 const FILMS = [
-  { key: 'f1', name: 'Rutin', duration: 10, silent: false, file: 'animasyon.mp4' },
-  { key: 'f2', name: 'Mutlu günlerimiz', duration: 20, silent: true, file: 'yolda.mp4' },
+  { key: 'f1', name: 'Hayat', duration: 10, silent: false, file: 'animasyon.mp4' },
+  { key: 'f2', name: 'Senle güzel', duration: 20, silent: true, file: 'yolda.mp4' },
 ].map((f) => ({ ...f, src: `${import.meta.env.BASE_URL}film/${f.file}` }))
 
 const fmtSec = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
