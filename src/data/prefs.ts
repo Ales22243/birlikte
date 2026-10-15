@@ -7,8 +7,8 @@ export interface Prefs {
   theme: Theme
   style: HomeStyle
   music: boolean
-  /** Uygulamayla gelen hazır video Videolarım listesinden kaldırıldı mı */
-  hideFilm: boolean
+  /** Videolarım listesinden kaldırılan hazır videolar (dosya adı) */
+  hiddenFilms: string[]
 }
 
 export const THEMES: { id: Theme; label: string; bar: string }[] = [
@@ -19,7 +19,7 @@ export const THEMES: { id: Theme; label: string; bar: string }[] = [
 ]
 
 const KEY = 'birlikte:prefs'
-const DEFAULT: Prefs = { theme: 'gece', style: 'kalp', music: true, hideFilm: false }
+const DEFAULT: Prefs = { theme: 'gece', style: 'kalp', music: true, hiddenFilms: [] }
 const subs = new Set<() => void>()
 let cache: Prefs | undefined
 

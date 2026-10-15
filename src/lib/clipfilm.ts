@@ -19,6 +19,8 @@ export type ClipAudio = 'mute' | 'native' | Sink
 export interface ClipFilmInput {
   /** Cihazdaki video (Blob) ya da uygulamayla gelen videonun adresi */
   clips: (Blob | string)[]
+  /** true olan kliplerin kendi sesi hiç çalmaz (ör. yabancı dilde konuşma) */
+  silent?: boolean[]
   a: string
   b: string
   start: string
@@ -40,6 +42,7 @@ interface Track {
   /** bu klibin bulanık arka planı; saniyede ~10 kez yenilenir */
   mid: HTMLCanvasElement
   blurAt: number
+  silent: boolean
 }
 
 // Uygulamayla gelen video bir kez tamamen indirilir (oynarken ağdan parça beklemesin), sonra bellekten oynar
@@ -80,7 +83,7 @@ export class ClipFilm {
 
   async prepare() {
     let at = INTRO - XF
-    for (const clip of this.input.clips) {
+    for (const [ci, clip] of this.input.clips.entries()) {
       const v = document.createElement('video')
       let blob: Blob
       try {
@@ -105,7 +108,7 @@ export class ClipFilm {
       const mid = document.createElement('canvas')
       mid.width = 90
       mid.height = 160
-      this.tracks.push({ v, url, start: at, dur: v.duration, mid, blurAt: -1 })
+      this.tracks.push({ v, url, start: at, dur: v.duration, mid, blurAt: -1, silent: !!this.input.silent?.[ci] })
       at += v.duration - XF
     }
     // ilk klip akıcı oynayabilecek kadar hazır olsun
@@ -121,7 +124,8 @@ export class ClipFilm {
   /** Oynatmadan önce çağrılır: klip sesinin nereye gideceği. */
   setAudio(mode: ClipAudio) {
     for (const tr of this.tracks) {
-      tr.v.muted = mode === 'mute'
+      tr.v.muted = mode === 'mute' || tr.silent
+      if (tr.silent) continue
       if (typeof mode === 'object') {
         try {
           const src = mode.ctx.createMediaElementSource(tr.v)
