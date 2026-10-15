@@ -1,3 +1,4 @@
+// Not: Uygulama simgesi artık "S&A" yazılı kalp (16 Ekim 2026, tarayıcıda SVG'den üretildi); bu betik eski düz kalbi üretir, çalıştırmayın.
 import { deflateSync } from 'node:zlib'
 import { writeFileSync } from 'node:fs'
 
