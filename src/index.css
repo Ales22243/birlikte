@@ -810,7 +810,7 @@ button {
 .heart-count {
   position: relative;
   width: min(84vw, 340px);
-  aspect-ratio: 108 / 98;
+  aspect-ratio: 21.2 / 19.8;
   margin: 4px auto 10px;
   display: grid;
   place-items: center;

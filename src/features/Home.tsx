@@ -126,7 +126,7 @@ export function Home({ settings, onOpenNotes }: { settings: Settings; onOpenNote
 
       <div className="home-body">
         <header className="pair">
-          <span>{settings.a}</span>
+          <span>{settings.b}</span>
           <button
             type="button"
             className="pulse"
@@ -138,14 +138,14 @@ export function Home({ settings, onOpenNotes }: { settings: Settings; onOpenNote
           >
             <HeartShape size={22} />
           </button>
-          <span>{settings.b}</span>
+          <span>{settings.a}</span>
         </header>
 
         <div className={`hero ${style}`}>
           <p className="hero-over">{todayMilestone ? `Bugün ${todayMilestone.label}!` : 'Birlikte'}</p>
           {style === 'kalp' ? (
             <div className="heart-count">
-              <svg className="heart-bg" viewBox="-4 -4 108 98" aria-hidden="true">
+              <svg className="heart-bg" viewBox="1.4 2.4 21.2 19.8" aria-hidden="true">
                 <defs>
                   <linearGradient id="hg" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0" stopColor="var(--rose)" stopOpacity="0.5" />
@@ -153,10 +153,12 @@ export function Home({ settings, onOpenNotes }: { settings: Settings; onOpenNote
                   </linearGradient>
                 </defs>
                 <path
-                  d="M50 86C12 58 0 40 0 24A23 23 0 0 1 50 17 23 23 0 0 1 100 24C100 40 88 58 50 86Z"
+                  d="M12 21.2C5.2 16 2.6 12.4 2.6 8.6 2.6 5.8 4.8 3.6 7.5 3.6c1.8 0 3.5 1 4.5 2.6 1-1.6 2.7-2.6 4.5-2.6 2.7 0 4.9 2.2 4.9 5 0 3.8-2.6 7.4-9.4 12.6z"
                   fill="url(#hg)"
                   stroke="var(--rose)"
-                  strokeWidth="1.4"
+                  strokeWidth="4"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
                 />
               </svg>
               <h1 className="hero-num" aria-label={`${passed} gün`}>

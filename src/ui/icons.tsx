@@ -51,7 +51,7 @@ export function HeartShape({ size = 24 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
       <path
         fill="currentColor"
-        d="M12 21C4.5 15.6 3 11.9 3 9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 2.900-1.500 6.600-9 12z"
+        d="M12 21.2C5.2 16 2.6 12.4 2.6 8.6 2.6 5.8 4.8 3.6 7.5 3.6c1.8 0 3.5 1 4.5 2.6 1-1.6 2.7-2.6 4.5-2.6 2.7 0 4.9 2.2 4.9 5 0 3.8-2.6 7.4-9.4 12.6z"
       />
     </svg>
   )
