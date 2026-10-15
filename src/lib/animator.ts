@@ -34,6 +34,8 @@ export interface FrameSource {
   readonly duration: number
   prepare(): Promise<void>
   prefetch(t: number): void
+  /** Varsa filmin saatini verir (ör. video takılınca bekler); yoksa gerçek saat kullanılır. */
+  clock?(wall: number): number
   draw(ctx: CanvasRenderingContext2D, t: number): void
   dispose(): void
 }

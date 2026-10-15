@@ -238,7 +238,8 @@ export function Anim({ settings }: { settings: Settings }) {
     const t0 = performance.now()
     let lastUi = 0
     const frame = () => {
-      const now = (performance.now() - t0) / 1000
+      const wall = (performance.now() - t0) / 1000
+      const now = animator.clock ? animator.clock(wall) : wall
       if (now >= duration) {
         animator.draw(ctx, duration - 0.001)
         return finish(true)
@@ -287,7 +288,7 @@ export function Anim({ settings }: { settings: Settings }) {
         ) : (
           <canvas ref={canvas} className="anim-canvas" width={W} height={H} aria-label="Animasyon önizlemesi" />
         )}
-        {phase === 'loading' && <p className="anim-badge">Fotoğraflar hazırlanıyor...</p>}
+        {phase === 'loading' && <p className="anim-badge">{kind === 'klip' ? 'Video hazırlanıyor...' : kind === 'cizgi' ? 'Hazırlanıyor...' : 'Fotoğraflar hazırlanıyor...'}</p>}
         {phase === 'recording' && <p className="anim-badge rec">● Kaydediliyor {fmtSec(t)} / {fmtSec(total)}</p>}
       </div>
 

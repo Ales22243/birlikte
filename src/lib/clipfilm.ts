@@ -37,6 +37,24 @@ interface Track {
   url: string
   start: number
   dur: number
+  /** bu klibin bulanık arka planı; saniyede ~10 kez yenilenir */
+  mid: HTMLCanvasElement
+  blurAt: number
+}
+
+// Uygulamayla gelen video bir kez tamamen indirilir (oynarken ağdan parça beklemesin), sonra bellekten oynar
+const downloads = new Map<string, Promise<Blob>>()
+function download(url: string): Promise<Blob> {
+  let p = downloads.get(url)
+  if (!p) {
+    p = fetch(url).then((r) => {
+      if (!r.ok) throw new Error(String(r.status))
+      return r.blob()
+    })
+    p.catch(() => downloads.delete(url))
+    downloads.set(url, p)
+  }
+  return p
 }
 
 export class ClipFilm {
@@ -46,7 +64,6 @@ export class ClipFilm {
   private heart = new Path2D(HEART_PATH)
   // bulanık arka plan: küçük kare → orta boy → tam ekran (iki adımlı büyütme kareli görünmez)
   private soft = document.createElement('canvas')
-  private mid = document.createElement('canvas')
   private sources: MediaElementAudioSourceNode[] = []
 
   constructor(input: ClipFilmInput) {
@@ -54,8 +71,6 @@ export class ClipFilm {
     this.days = Math.max(0, daysBetween(parseISO(input.start), new Date()))
     this.soft.width = 18
     this.soft.height = 32
-    this.mid.width = 90
-    this.mid.height = 160
   }
 
   get duration() {
@@ -67,7 +82,13 @@ export class ClipFilm {
     let at = INTRO - XF
     for (const clip of this.input.clips) {
       const v = document.createElement('video')
-      const url = typeof clip === 'string' ? clip : URL.createObjectURL(clip)
+      let blob: Blob
+      try {
+        blob = typeof clip === 'string' ? await download(clip) : clip
+      } catch {
+        continue
+      }
+      const url = URL.createObjectURL(blob)
       v.playsInline = true
       v.muted = true
       v.preload = 'auto'
@@ -78,18 +99,21 @@ export class ClipFilm {
         setTimeout(() => resolve(v.readyState >= 1), 8000)
       })
       if (!ok || !Number.isFinite(v.duration) || v.duration <= 0) {
-        if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+        URL.revokeObjectURL(url)
         continue
       }
-      this.tracks.push({ v, url, start: at, dur: v.duration })
+      const mid = document.createElement('canvas')
+      mid.width = 90
+      mid.height = 160
+      this.tracks.push({ v, url, start: at, dur: v.duration, mid, blurAt: -1 })
       at += v.duration - XF
     }
-    // ilk klibin ilk karesi hazır olsun
+    // ilk klip akıcı oynayabilecek kadar hazır olsun
     const first = this.tracks[0]?.v
-    if (first && first.readyState < 2) {
+    if (first && first.readyState < 4) {
       await new Promise<void>((resolve) => {
-        first.addEventListener('loadeddata', () => resolve(), { once: true })
-        setTimeout(resolve, 4000)
+        first.addEventListener('canplaythrough', () => resolve(), { once: true })
+        setTimeout(resolve, 5000)
       })
     }
   }
@@ -117,14 +141,34 @@ export class ClipFilm {
       tr.v.pause()
       tr.v.removeAttribute('src')
       tr.v.load()
-      if (tr.url.startsWith('blob:')) URL.revokeObjectURL(tr.url)
+      URL.revokeObjectURL(tr.url)
     }
     for (const s of this.sources) s.disconnect()
     this.tracks = []
     this.sources = []
   }
 
-  /** Videoyu filmin saatiyle eşler: zamanı gelince oynatır, kayarsa düzeltir, bitince durdurur. */
+  private lag = 0
+
+  /**
+   * Filmin saati: video takılırsa (kod çözme ya da yükleme) saat de onu bekler.
+   * Böylece videoyu ileri sarıp yeni takılmalara yol açmak yerine görüntü ve ses birlikte akar.
+   */
+  clock(wall: number) {
+    let t = wall - this.lag
+    let tr: Track | undefined
+    for (const x of this.tracks) if (t >= x.start && t < x.start + x.dur) tr = x
+    if (tr && !tr.v.ended && t - tr.start > 0.25) {
+      const at = tr.start + tr.v.currentTime
+      if (t - at > 0.1) {
+        this.lag += t - at
+        t = at
+      }
+    }
+    return t
+  }
+
+  /** Videoyu zamanı gelince oynatır, bitince durdurur. Oynarken ileri sarmaz (takılma yapar). */
   private sync(tr: Track, t: number) {
     const local = t - tr.start
     const v = tr.v
@@ -133,8 +177,8 @@ export class ClipFilm {
       if (local < 0 && v.currentTime > 0.05 && v.readyState >= 1) v.currentTime = 0
       return
     }
-    if (Math.abs(v.currentTime - local) > 0.35) v.currentTime = local
     if (v.paused && !v.ended) {
+      if (Math.abs(v.currentTime - local) > 0.5) v.currentTime = local
       v.play().catch(() => {
         // sesli oynatma engellenirse sessiz devam et
         if (!v.muted) {
@@ -162,7 +206,7 @@ export class ClipFilm {
       const a = smooth(local / XF)
       if (a <= 0) continue
       ctx.globalAlpha = a
-      this.frame(ctx, tr.v, t, 1 - smooth((t - outroAt) / 0.8))
+      this.frame(ctx, tr, t, 1 - smooth((t - outroAt) / 0.8))
     }
     ctx.globalAlpha = 1
 
@@ -171,7 +215,8 @@ export class ClipFilm {
     ctx.restore()
   }
 
-  private frame(ctx: CanvasRenderingContext2D, v: HTMLVideoElement, t: number, labels: number) {
+  private frame(ctx: CanvasRenderingContext2D, tr: Track, t: number, labels: number) {
+    const v = tr.v
     if (v.readyState < 2 || !v.videoWidth) return
     const vw = v.videoWidth
     const vh = v.videoHeight
@@ -181,15 +226,18 @@ export class ClipFilm {
       return
     }
     // sığdır: bulanık arka plan + ortada tam video
-    const s = this.soft.getContext('2d')!
-    const kb = Math.max(this.soft.width / vw, this.soft.height / vh)
-    s.drawImage(v, (this.soft.width - vw * kb) / 2, (this.soft.height - vh * kb) / 2, vw * kb, vh * kb)
-    const m = this.mid.getContext('2d')!
-    m.imageSmoothingEnabled = true
-    m.drawImage(this.soft, 0, 0, this.mid.width, this.mid.height)
+    if (tr.blurAt < 0 || Math.abs(t - tr.blurAt) > 0.1) {
+      tr.blurAt = t
+      const s = this.soft.getContext('2d')!
+      const kb = Math.max(this.soft.width / vw, this.soft.height / vh)
+      s.drawImage(v, (this.soft.width - vw * kb) / 2, (this.soft.height - vh * kb) / 2, vw * kb, vh * kb)
+      const m = tr.mid.getContext('2d')!
+      m.imageSmoothingEnabled = true
+      m.drawImage(this.soft, 0, 0, tr.mid.width, tr.mid.height)
+    }
     ctx.imageSmoothingEnabled = true
     ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(this.mid, -30, -30, FW + 60, FH + 60)
+    ctx.drawImage(tr.mid, -30, -30, FW + 60, FH + 60)
     const base = ctx.globalAlpha
     ctx.globalAlpha = base * 0.45
     ctx.fillStyle = '#0e0616'
@@ -199,10 +247,15 @@ export class ClipFilm {
     const dw = vw * k
     const dh = vh * k
     const y = (FH - dh) / 2
-    ctx.shadowColor = 'rgba(0,0,0,0.55)'
-    ctx.shadowBlur = 40
+    // gölge yerine yumuşak koyu şerit (shadowBlur telefonda her karede pahalı)
+    const sh = ctx.createLinearGradient(0, y - 40, 0, y + dh + 40)
+    sh.addColorStop(0, 'rgba(0,0,0,0)')
+    sh.addColorStop(0.1, 'rgba(0,0,0,0.35)')
+    sh.addColorStop(0.9, 'rgba(0,0,0,0.35)')
+    sh.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = sh
+    ctx.fillRect(0, y - 40, FW, dh + 80)
     ctx.drawImage(v, (FW - dw) / 2, y, dw, dh)
-    ctx.shadowBlur = 0
 
     // üstte isimler, altta gün sayısı (yatay videolarda boş alana)
     if (dh < FH * 0.8 && labels > 0) {
