@@ -2,7 +2,7 @@
 const TAU = Math.PI * 2
 
 export type Who = 'adem' | 'sena'
-export type Pose = 'sit' | 'walk' | 'dine'
+export type Pose = 'sit' | 'walk' | 'dine' | 'chair'
 
 export interface PState {
   who: Who
@@ -32,6 +32,12 @@ export interface PState {
   squint?: number
   /** Başın yatay kayması (yerel birim) */
   hx?: number
+  /** Şezlongda: 0 = arkadan denize bakıyor, 1 = yüzünü çevirmiş */
+  turn?: number
+  /** Kahkaha şiddeti 0..1 (gözler kapanıp gülümser, ağız tamamen açılır) */
+  joy?: number
+  /** Gövdenin kahkahada titremesi (dikey kayma) */
+  bounce?: number
 }
 
 const SKIN = { adem: '#efc29a', sena: '#f6d5b8' }
@@ -100,8 +106,17 @@ function limb(
   return { x: sx + dx, y: sy + dy }
 }
 
-function eye(ctx: CanvasRenderingContext2D, x: number, y: number, R: number, look: number, blink: number, lash: boolean) {
+function eye(ctx: CanvasRenderingContext2D, x: number, y: number, R: number, look: number, blink: number, lash: boolean, happy = false) {
   const rx = R * 0.17
+  if (happy) {
+    ctx.strokeStyle = '#2a1a14'
+    ctx.lineWidth = R * 0.06
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.arc(x, y + R * 0.08, rx * 1.1, Math.PI * 1.08, Math.PI * 1.92)
+    ctx.stroke()
+    return
+  }
   const ry = R * 0.2 * (1 - blink * 0.94)
   if (blink > 0.85) {
     ctx.strokeStyle = '#2a1a14'
@@ -194,6 +209,8 @@ function blinkAmount(t: number, who: Who): number {
 
 function drawHeadFront(ctx: CanvasRenderingContext2D, who: Who, R: number, p: PState) {
   const skin = SKIN[who]
+  const joy = p.joy ?? 0
+  const happy = joy > 0.5
   const blink = Math.max(blinkAmount(p.t, who), p.squint ?? 0)
   const look = p.look
   // kulaklar
@@ -279,9 +296,9 @@ function drawHeadFront(ctx: CanvasRenderingContext2D, who: Who, R: number, p: PS
   }
   // gözler ve kaşlar
   const ey = -R * 0.08
-  eye(ctx, -R * 0.38, ey, R, look, blink, who === 'sena')
-  eye(ctx, R * 0.38, ey, R, look, blink, who === 'sena')
-  const raise = (p.squint ?? 0) * R * 0.04
+  eye(ctx, -R * 0.38, ey, R, look, blink, who === 'sena', happy)
+  eye(ctx, R * 0.38, ey, R, look, blink, who === 'sena', happy)
+  const raise = (p.squint ?? 0) * R * 0.04 + joy * R * 0.09
   if (who === 'adem') {
     brow(ctx, -R * 0.38, -R * 0.38, R, '#2f221b', 0.09, raise)
     brow(ctx, R * 0.38, -R * 0.38, R, '#2f221b', 0.09, raise)
@@ -298,8 +315,19 @@ function drawHeadFront(ctx: CanvasRenderingContext2D, who: Who, R: number, p: PS
   ctx.quadraticCurveTo(look * R * 0.05 + R * 0.09, R * 0.3, look * R * 0.05 - R * 0.02, R * 0.32)
   ctx.stroke()
   // ağız
-  if (who === 'adem') mouthShape(ctx, R, R * 0.6, R * 0.26, p.mouth, '#e8a79a')
-  else mouthShape(ctx, R, R * 0.58, R * 0.24, p.mouth, '#d2625f')
+  const mw = 1 + joy * 0.3
+  if (who === 'adem') mouthShape(ctx, R, R * 0.6, R * 0.26 * mw, p.mouth, '#e8a79a')
+  else mouthShape(ctx, R, R * 0.58, R * 0.24 * mw, p.mouth, '#d2625f')
+  if (joy > 0.4) {
+    // gözyaşları
+    ctx.fillStyle = 'rgba(120,190,255,0.85)'
+    for (const sd of [-1, 1]) {
+      const k = (p.t * 2.2 + (sd > 0 ? 0.4 : 0)) % 1
+      ctx.beginPath()
+      ctx.ellipse(sd * (R * 0.6 + k * R * 0.35), R * 0.06 - R * 0.1 + k * R * 0.5, R * 0.04, R * 0.07, sd * 0.4, 0, TAU)
+      ctx.fill()
+    }
+  }
   if (who === 'sena') {
     ctx.fillStyle = '#e9bf6a'
     for (const sd of [-1, 1]) {
@@ -310,9 +338,55 @@ function drawHeadFront(ctx: CanvasRenderingContext2D, who: Who, R: number, p: PS
   }
 }
 
+function drawHeadBack(ctx: CanvasRenderingContext2D, who: Who, R: number) {
+  const skin = SKIN[who]
+  if (who === 'adem') {
+    ctx.fillStyle = skin
+    for (const sd of [-1, 1]) {
+      ellipse(ctx, sd * R * 0.98, R * 0.1, R * 0.12, R * 0.2)
+      ctx.fill()
+    }
+    ctx.fillStyle = HAIR_A
+    ellipse(ctx, 0, 0, R * 1.0, R * 1.08)
+    ctx.fill()
+    ctx.strokeStyle = '#5a4535'
+    ctx.lineWidth = R * 0.05
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.arc(R * 0.1, -R * 0.35, R * 0.22, 0.2, 4.6)
+    ctx.stroke()
+    ctx.fillStyle = skin
+    ctx.beginPath()
+    ctx.moveTo(-R * 0.55, R * 0.95)
+    ctx.quadraticCurveTo(0, R * 1.2, R * 0.55, R * 0.95)
+    ctx.lineTo(R * 0.4, R * 0.7)
+    ctx.lineTo(-R * 0.4, R * 0.7)
+    ctx.fill()
+  } else {
+    ctx.fillStyle = HAIR_S
+    ellipse(ctx, 0, -R * 0.02, R * 1.1, R * 1.15)
+    ctx.fill()
+    ctx.strokeStyle = HAIR_S_LIGHT
+    ctx.lineWidth = R * 0.09
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(-R * 0.7, -R * 0.5)
+    ctx.quadraticCurveTo(-R * 0.2, -R * 1.0, R * 0.4, -R * 0.85)
+    ctx.stroke()
+    ctx.lineWidth = R * 0.05
+    ctx.beginPath()
+    ctx.moveTo(R * 0.55, R * 0.1)
+    ctx.quadraticCurveTo(R * 0.8, R * 0.5, R * 0.7, R * 1.0)
+    ctx.stroke()
+  }
+}
+
 function drawBackHair(ctx: CanvasRenderingContext2D, R: number, p: PState) {
   // Sena'nın omuza inen uzun saçı (kafanın arkası)
-  const sway = Math.sin(p.t * 1.6) * R * 0.05 + (p.pose === 'walk' ? Math.sin((p.ph ?? 0) * 1) * R * 0.1 : 0)
+  const sway =
+    Math.sin(p.t * 1.6) * R * 0.05 +
+    (p.pose === 'walk' ? Math.sin((p.ph ?? 0) * 1) * R * 0.1 : 0) +
+    (p.pose === 'chair' ? Math.sin(p.t * 2.1 + 1) * R * 0.14 + R * 0.12 : 0)
   ctx.fillStyle = HAIR_S
   ctx.beginPath()
   ctx.moveTo(-R * 1.1, -R * 0.2)
@@ -333,7 +407,7 @@ function drawBackHair(ctx: CanvasRenderingContext2D, R: number, p: PState) {
   }
 }
 
-function drawTorso(ctx: CanvasRenderingContext2D, who: Who, hx: number, hy: number, lean: number) {
+function drawTorso(ctx: CanvasRenderingContext2D, who: Who, hx: number, hy: number, lean: number, back = false) {
   const adem = who === 'adem'
   const sw = adem ? 132 : 112
   const tw = adem ? 116 : 84
@@ -351,6 +425,25 @@ function drawTorso(ctx: CanvasRenderingContext2D, who: Who, hx: number, hy: numb
   ctx.closePath()
   ctx.fill()
   // yaka / dekolte
+  if (back) {
+    if (adem) {
+      ctx.fillStyle = '#d97312'
+      ctx.fillRect(hx - 30 + lean, sy - 2, 60, 12)
+    } else {
+      ctx.fillStyle = SKIN[who]
+      ctx.beginPath()
+      ctx.moveTo(hx - 26 + lean, sy)
+      ctx.quadraticCurveTo(hx + lean, sy + 22, hx + 26 + lean, sy)
+      ctx.fill()
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(hx + lean, sy + 14)
+    ctx.lineTo(hx, hy)
+    ctx.stroke()
+    return
+  }
   ctx.fillStyle = SKIN[who]
   ctx.beginPath()
   if (adem) {
@@ -408,8 +501,46 @@ export function drawPerson(ctx: CanvasRenderingContext2D, p: PState) {
   ctx.fill()
 
   const breathe = 1 + Math.sin(p.t * 2.2 + (adem ? 0 : 1)) * 0.012
+  if (p.bounce) ctx.translate(0, p.bounce)
 
-  if (p.pose === 'walk') {
+  if (p.pose === 'chair') {
+    const hipY = -20
+    const shoulderY = hipY - 118
+    const inner = p.inner ?? 1
+    const turn = p.turn ?? 0
+    const sxI = inner * (adem ? 62 : 52)
+    const handIn = p.handA ? toLocal(p.handA) : { x: inner * 80, y: hipY }
+    ctx.save()
+    ctx.translate(0, hipY)
+    ctx.scale(1, breathe)
+    ctx.translate(0, -hipY)
+    drawTorso(ctx, p.who, 0, hipY + 6, 0, true)
+    ctx.restore()
+    const bendC = (inner === 1 ? 1 : -1) as 1 | -1
+    const arm = limb(ctx, sxI, shoulderY + 10, handIn.x, handIn.y, 56, 54, bendC, adem ? 26 : 22, sleeve, adem ? 18 : 16, skin)
+    ctx.fillStyle = skin
+    ctx.beginPath()
+    ctx.arc(arm.x, arm.y, adem ? 12 : 11, 0, TAU)
+    ctx.fill()
+    ctx.save()
+    ctx.translate(p.hx ?? 0, shoulderY - R * 0.95)
+    ctx.rotate(p.tilt)
+    ctx.fillStyle = skin
+    ctx.fillRect(-14, R * 0.7, 28, 40)
+    if (p.who === 'sena') drawBackHair(ctx, R, p)
+    if (turn < 0.5) {
+      ctx.save()
+      ctx.scale(1 - turn * 2 * 0.85, 1)
+      drawHeadBack(ctx, p.who, R)
+      ctx.restore()
+    } else {
+      ctx.save()
+      ctx.scale(0.15 + (turn - 0.5) * 2 * 0.8, 1)
+      drawHeadFront(ctx, p.who, R, p)
+      ctx.restore()
+    }
+    ctx.restore()
+  } else if (p.pose === 'walk') {
     const ph = p.ph ?? 0
     const bob = -Math.abs(Math.sin(ph)) * 7
     const hipY = -128 + bob

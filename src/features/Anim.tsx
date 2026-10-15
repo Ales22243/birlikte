@@ -366,7 +366,7 @@ export function Anim({ settings }: { settings: Settings }) {
               </fieldset>
               <p className="muted small-note">
                 {kind === 'cizgi'
-                  ? `${settings.b} ve ${settings.a}: sahilde oturma, kıyıda yürüyüş, balıkçıda yemek · yaklaşık ${Math.round(estimate)} saniye.`
+                  ? `${settings.b} ve ${settings.a}: şezlongda gün batımı, el ele yürüyüş, balıkçıda dürüm ve kahkaha · yaklaşık ${Math.round(estimate)} saniye.`
                   : `${chosen.length} fotoğraf · yaklaşık ${Math.round(estimate)} saniyelik dikey video.`}
               </p>
             </div>
