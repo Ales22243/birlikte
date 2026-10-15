@@ -80,6 +80,9 @@ body,
   height: 100%;
   margin: 0;
 }
+html {
+  background: var(--night);
+}
 body {
   background: var(--night);
   color: var(--blush);
@@ -104,9 +107,13 @@ button {
 
 /* ---------- kabuk ---------- */
 .app {
-  /* 100dvh iPhone ana ekran uygulamasında ilk açılışta kısa kalıp altta boşluk bırakıyordu: kabuk ekrana sabitlendi */
+  /* 100dvh iPhone ana ekran uygulamasında ilk açılışta kısa kalıp altta boşluk bırakıyordu:
+     kabuk ekrana sabitlenir, yüksekliği main.tsx ölçüp --app-h olarak verir */
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--app-h, 100%);
   display: flex;
   flex-direction: column;
   max-width: 520px;
