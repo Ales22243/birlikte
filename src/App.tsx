@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { THEMES, usePrefs } from './data/prefs'
 import { useSettings } from './data/settings'
 import { PhotosProvider } from './data/photos'
+import { Anim } from './features/Anim'
 import { Home } from './features/Home'
 import { Notes } from './features/Notes'
 import { useNotes } from './data/notes'
@@ -36,6 +37,7 @@ export default function App() {
           {tab === 'home' && <Home settings={settings} onOpenNotes={() => setTab('notes')} />}
           {tab === 'notes' && <Notes settings={settings} />}
           {tab === 'photos' && <Photos settings={settings} />}
+          {tab === 'anim' && <Anim settings={settings} />}
           {tab === 'settings' && <SettingsPage settings={settings} />}
         </main>
         <Nav tab={tab} onChange={setTab} />

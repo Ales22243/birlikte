@@ -12,15 +12,21 @@ export interface Player {
   stop: () => void
 }
 
-export function startMusicBox(volume = 0.5): Player {
-  const ctx = new AudioContext()
+export interface Sink {
+  /** Verilirse bu bağlamda ve çıkışa çalar (videoya kayıt için); kapatmayı çağıran yapar. */
+  ctx: AudioContext
+  out: AudioNode
+}
+
+export function startMusicBox(volume = 0.5, sink?: Sink): Player {
+  const ctx = sink?.ctx ?? new AudioContext()
   const master = ctx.createGain()
   master.gain.setValueAtTime(0, ctx.currentTime)
   master.gain.linearRampToValueAtTime(volume, ctx.currentTime + 2)
   const lp = ctx.createBiquadFilter()
   lp.type = 'lowpass'
   lp.frequency.value = 3200
-  master.connect(lp).connect(ctx.destination)
+  master.connect(lp).connect(sink?.out ?? ctx.destination)
 
   const pluck = (f: number, t: number) => {
     const o = ctx.createOscillator()
@@ -65,7 +71,7 @@ export function startMusicBox(volume = 0.5): Player {
       master.gain.cancelScheduledValues(ctx.currentTime)
       master.gain.setValueAtTime(master.gain.value, ctx.currentTime)
       master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6)
-      setTimeout(() => void ctx.close(), 800)
+      if (!sink) setTimeout(() => void ctx.close(), 800)
     },
   }
 }
@@ -125,6 +131,48 @@ export function startPlaylist(blobs: Blob[], volume = 0.7): Player {
           urls.forEach((u) => URL.revokeObjectURL(u))
         }
       }, 60)
+    },
+  }
+}
+
+/** Seçilen şarkıları arka arkaya dizip verilen çıkışa yollar (video kaydı için); toplam süreyi dolduracak kadar tekrarlar. */
+export async function startSongsInto(blobs: Blob[], sink: Sink, totalSeconds: number): Promise<Player> {
+  const { ctx, out } = sink
+  const buffers: AudioBuffer[] = []
+  for (const b of blobs) {
+    try {
+      buffers.push(await ctx.decodeAudioData(await b.arrayBuffer()))
+    } catch {
+      // çözülemeyen dosya atlanır
+    }
+  }
+  if (!buffers.length) return startMusicBox(0.6, sink)
+  const master = ctx.createGain()
+  master.gain.setValueAtTime(0, ctx.currentTime)
+  master.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 1.5)
+  master.gain.setValueAtTime(0.8, ctx.currentTime + Math.max(0, totalSeconds - 2))
+  master.gain.linearRampToValueAtTime(0, ctx.currentTime + totalSeconds)
+  master.connect(out)
+  const sources: AudioBufferSourceNode[] = []
+  let at = ctx.currentTime
+  for (let i = 0; at < ctx.currentTime + totalSeconds && i < 200; i++) {
+    const buf = buffers[i % buffers.length]
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    src.connect(master)
+    src.start(at)
+    sources.push(src)
+    at += buf.duration
+  }
+  return {
+    stop() {
+      for (const s of sources) {
+        try {
+          s.stop()
+        } catch {
+          // zaten bitmiş
+        }
+      }
     },
   }
 }

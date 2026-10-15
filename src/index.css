@@ -125,7 +125,7 @@ button {
   height: calc(var(--nav-h) + var(--safe-b));
   padding-bottom: var(--safe-b);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: var(--glass);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -1446,4 +1446,87 @@ a.btn {
   font-family: var(--serif);
   font-weight: 500;
   font-size: 1.35rem;
+}
+
+/* ---------- animasyon sekmesi ---------- */
+.stage-wrap {
+  position: relative;
+  width: min(100%, 300px);
+  margin: 0 auto;
+  aspect-ratio: 9 / 16;
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--night);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.35);
+}
+.anim-canvas,
+.anim-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #140a20;
+}
+.anim-badge {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.8125rem;
+  color: #fff;
+  background: rgb(0 0 0 / 0.55);
+}
+.anim-badge.rec {
+  background: rgb(200 30 70 / 0.85);
+}
+.opts {
+  gap: 14px;
+}
+.opts fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.opts legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.seg3,
+.seg4 {
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 3px;
+}
+.seg3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.seg4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.seg3 button,
+.seg4 button {
+  min-height: 40px;
+  border: 0;
+  background: none;
+  border-radius: 99px;
+  font-size: 0.875rem;
+  padding: 0 4px;
+}
+.seg3 button[aria-checked='true'],
+.seg4 button[aria-checked='true'] {
+  background: var(--rose);
+  color: var(--on-rose);
+  font-weight: 600;
+}
+.seg3 button:disabled,
+.seg4 button:disabled {
+  opacity: 0.45;
 }

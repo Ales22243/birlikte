@@ -87,7 +87,7 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
 
 export const usePhotos = () => useContext(Ctx)
 
-interface Decoded {
+export interface Decoded {
   source: CanvasImageSource
   width: number
   height: number
@@ -95,7 +95,7 @@ interface Decoded {
 }
 
 /** Dosyayı çözer: önce doğrudan, olmazsa küçülterek çözerek, o da olmazsa <img> ile (iPhone'un bellek sınırları için). */
-async function decode(file: Blob): Promise<Decoded> {
+export async function decode(file: Blob): Promise<Decoded> {
   const fromBitmap = (bmp: ImageBitmap): Decoded => ({ source: bmp, width: bmp.width, height: bmp.height, release: () => bmp.close() })
   try {
     return fromBitmap(await createImageBitmap(file, { imageOrientation: 'from-image' }))
