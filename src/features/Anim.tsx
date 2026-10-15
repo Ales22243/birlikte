@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Settings } from '../data/settings'
 import { usePhotos } from '../data/photos'
 import { useSongs } from '../data/songs'
-import { Animator, H, W, pickRecorderFormat, planFor, type AnimStyle, type Length } from '../lib/animator'
+import { Animator, H, W, pickRecorderFormat, planFor, type AnimStyle, type FrameSource, type Length } from '../lib/animator'
+import { Cartoon, CARTOON_SECONDS } from '../lib/cartoon'
 import { startMusicBox, startPlaylist, startSongsInto, type Player } from '../lib/music'
 import { IconPlay } from '../ui/icons'
 
 type Phase = 'idle' | 'loading' | 'preview' | 'recording' | 'done'
 type MusicChoice = 'kutu' | 'sarki' | 'sessiz'
+type Kind = 'foto' | 'cizgi'
 
 const COUNTS = [5, 10, 20, 0] as const
 const LENGTHS: { id: Length; label: string }[] = [
@@ -36,6 +38,7 @@ export function Anim({ settings }: { settings: Settings }) {
   const photos = usePhotos()
   const songs = useSongs()
   const canvas = useRef<HTMLCanvasElement>(null)
+  const [kind, setKind] = useState<Kind>('cizgi')
   const [count, setCount] = useState<(typeof COUNTS)[number]>(10)
   const [style, setStyle] = useState<AnimStyle>('karisik')
   const [length, setLength] = useState<Length>('kisa8')
@@ -66,7 +69,7 @@ export function Anim({ settings }: { settings: Settings }) {
     return list.slice(0, plan.count).sort((x, y) => x.takenAt.localeCompare(y.takenAt) || x.id - y.id)
   }, [photos, length, random, seed, plan.count])
 
-  const estimate = chosen.length ? plan.timing.intro + chosen.length * plan.timing.scene + plan.timing.outro : 0
+  const estimate = kind === 'cizgi' ? CARTOON_SECONDS : chosen.length ? plan.timing.intro + chosen.length * plan.timing.scene + plan.timing.outro : 0
 
   // Boşta duran tuvale kapak karesi çiz
   useEffect(() => {
@@ -75,13 +78,16 @@ export function Anim({ settings }: { settings: Settings }) {
     void fontsReady().then(() => {
       const c = canvas.current
       if (!live || !c) return
-      const a = new Animator({ photos: [], a: settings.a, b: settings.b, start: settings.start, style: 'karisik' })
-      a.draw(c.getContext('2d')!, 2.9)
+      const a: FrameSource =
+        kind === 'cizgi'
+          ? new Cartoon({ a: settings.a, b: settings.b, start: settings.start })
+          : new Animator({ photos: [], a: settings.a, b: settings.b, start: settings.start, style: 'karisik' })
+      a.draw(c.getContext('2d')!, kind === 'cizgi' ? 6.4 : 2.9)
     })
     return () => {
       live = false
     }
-  }, [phase, settings])
+  }, [phase, settings, kind])
 
   useEffect(() => {
     return () => {
@@ -92,7 +98,7 @@ export function Anim({ settings }: { settings: Settings }) {
 
   const run = async (mode: 'preview' | 'record') => {
     const c = canvas.current
-    if (!c || !chosen.length) return
+    if (!c || (kind === 'foto' && !chosen.length)) return
     stopRef.current?.()
     if (video) {
       URL.revokeObjectURL(video.url)
@@ -102,14 +108,17 @@ export function Anim({ settings }: { settings: Settings }) {
     setPhase('loading')
     await fontsReady()
 
-    const animator = new Animator({
-      photos: chosen.map((p) => ({ blob: p.blob, takenAt: p.takenAt, caption: p.caption })),
-      a: settings.a,
-      b: settings.b,
-      start: settings.start,
-      style,
-      timing: plan.timing,
-    })
+    const animator: FrameSource =
+      kind === 'cizgi'
+        ? new Cartoon({ a: settings.a, b: settings.b, start: settings.start })
+        : new Animator({
+            photos: chosen.map((p) => ({ blob: p.blob, takenAt: p.takenAt, caption: p.caption })),
+            a: settings.a,
+            b: settings.b,
+            start: settings.start,
+            style,
+            timing: plan.timing,
+          })
     await animator.prepare()
     const ctx = c.getContext('2d')!
     const duration = animator.duration
@@ -237,7 +246,7 @@ export function Anim({ settings }: { settings: Settings }) {
   }
 
   const busy = phase === 'loading' || phase === 'preview' || phase === 'recording'
-  const empty = photos && photos.length === 0
+  const empty = kind === 'foto' && photos && photos.length === 0
 
   return (
     <section className="page">
@@ -263,7 +272,18 @@ export function Anim({ settings }: { settings: Settings }) {
       )}
       {msg && <p className="note" role="status">{msg}</p>}
 
-      {empty && <p className="muted">Animasyon için önce Anılar'a fotoğraf ekleyin.</p>}
+      {empty && <p className="muted">Fotoğraflı film için önce Anılar'a fotoğraf ekleyin.</p>}
+
+      {phase !== 'done' && (
+        <div className="seg" role="radiogroup" aria-label="Animasyon türü">
+          <button type="button" role="radio" aria-checked={kind === 'cizgi'} disabled={busy} onClick={() => setKind('cizgi')}>
+            Çizgi film
+          </button>
+          <button type="button" role="radio" aria-checked={kind === 'foto'} disabled={busy} onClick={() => setKind('foto')}>
+            Fotoğraflı film
+          </button>
+        </div>
+      )}
 
       {phase === 'done' && video ? (
         <div className="row">
@@ -278,6 +298,8 @@ export function Anim({ settings }: { settings: Settings }) {
         !empty && (
           <>
             <div className="card wide opts">
+              {kind === 'foto' && (
+              <>
               <fieldset>
                 <legend>Süre</legend>
                 <div className="seg4" role="radiogroup">
@@ -325,6 +347,8 @@ export function Anim({ settings }: { settings: Settings }) {
                   ))}
                 </div>
               </fieldset>
+              </>
+              )}
               <fieldset>
                 <legend>Müzik</legend>
                 <div className="seg3" role="radiogroup">
@@ -341,7 +365,9 @@ export function Anim({ settings }: { settings: Settings }) {
                 {!songs?.length && <small className="muted">Şarkılarım için Ayarlar'dan şarkı ekleyin.</small>}
               </fieldset>
               <p className="muted small-note">
-                {chosen.length} fotoğraf · yaklaşık {Math.round(estimate)} saniyelik dikey video.
+                {kind === 'cizgi'
+                  ? `${settings.b} ve ${settings.a}: sahilde oturma, kıyıda yürüyüş, balıkçıda yemek · yaklaşık ${Math.round(estimate)} saniye.`
+                  : `${chosen.length} fotoğraf · yaklaşık ${Math.round(estimate)} saniyelik dikey video.`}
               </p>
             </div>
 
@@ -352,11 +378,11 @@ export function Anim({ settings }: { settings: Settings }) {
                 </button>
               ) : (
                 <>
-                  <button type="button" className="btn ghost" disabled={!chosen.length} onClick={() => run('preview')}>
+                  <button type="button" className="btn ghost" disabled={kind === 'foto' && !chosen.length} onClick={() => run('preview')}>
                     <IconPlay />
                     Önizle
                   </button>
-                  <button type="button" className="btn" disabled={!chosen.length || !format} onClick={() => run('record')}>
+                  <button type="button" className="btn" disabled={(kind === 'foto' && !chosen.length) || !format} onClick={() => run('record')}>
                     Video oluştur
                   </button>
                 </>

@@ -29,6 +29,15 @@ export function planFor(length: Length, available: number, wanted: number): { ti
   return { timing, count: Math.min(available, Math.max(1, Math.round((target - outro) / scene))) }
 }
 
+/** Hem fotoğraflı film hem çizgi film bu arayüzle oynatılır ve kaydedilir. */
+export interface FrameSource {
+  readonly duration: number
+  prepare(): Promise<void>
+  prefetch(t: number): void
+  draw(ctx: CanvasRenderingContext2D, t: number): void
+  dispose(): void
+}
+
 export type AnimStyle = 'karisik' | 'yakin' | 'polaroid'
 
 export interface AnimPhoto {
