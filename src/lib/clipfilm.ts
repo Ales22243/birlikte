@@ -17,7 +17,8 @@ export type ClipFit = 'sigdir' | 'kirp'
 export type ClipAudio = 'mute' | 'native' | Sink
 
 export interface ClipFilmInput {
-  clips: Blob[]
+  /** Cihazdaki video (Blob) ya da uygulamayla gelen videonun adresi */
+  clips: (Blob | string)[]
   a: string
   b: string
   start: string
@@ -64,9 +65,9 @@ export class ClipFilm {
 
   async prepare() {
     let at = INTRO - XF
-    for (const blob of this.input.clips) {
+    for (const clip of this.input.clips) {
       const v = document.createElement('video')
-      const url = URL.createObjectURL(blob)
+      const url = typeof clip === 'string' ? clip : URL.createObjectURL(clip)
       v.playsInline = true
       v.muted = true
       v.preload = 'auto'
@@ -77,7 +78,7 @@ export class ClipFilm {
         setTimeout(() => resolve(v.readyState >= 1), 8000)
       })
       if (!ok || !Number.isFinite(v.duration) || v.duration <= 0) {
-        URL.revokeObjectURL(url)
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url)
         continue
       }
       this.tracks.push({ v, url, start: at, dur: v.duration })
@@ -116,7 +117,7 @@ export class ClipFilm {
       tr.v.pause()
       tr.v.removeAttribute('src')
       tr.v.load()
-      URL.revokeObjectURL(tr.url)
+      if (tr.url.startsWith('blob:')) URL.revokeObjectURL(tr.url)
     }
     for (const s of this.sources) s.disconnect()
     this.tracks = []

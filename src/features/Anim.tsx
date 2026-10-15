@@ -3,6 +3,7 @@ import type { Settings } from '../data/settings'
 import { usePhotos } from '../data/photos'
 import { useSongs } from '../data/songs'
 import { addClips, deleteClip, moveClip, useClips } from '../data/clips'
+import { savePrefs, usePrefs } from '../data/prefs'
 import { Animator, H, W, pickRecorderFormat, planFor, type AnimStyle, type FrameSource, type Length } from '../lib/animator'
 import { Cartoon, CARTOON_SECONDS } from '../lib/cartoon'
 import { ClipFilm, type ClipFit } from '../lib/clipfilm'
@@ -26,6 +27,9 @@ const STYLES: { id: AnimStyle; label: string }[] = [
   { id: 'polaroid', label: 'Polaroid' },
 ]
 
+/** Uygulamayla birlikte gelen hazır video (Kling ile üretildi) */
+const FILM = { name: 'Animasyon videomuz', src: `${import.meta.env.BASE_URL}film/animasyon.mp4`, duration: 10 }
+
 const fmtSec = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
 async function fontsReady() {
@@ -39,11 +43,13 @@ async function fontsReady() {
 export function Anim({ settings }: { settings: Settings }) {
   const photos = usePhotos()
   const songs = useSongs()
-  const clips = useClips()
+  const userClips = useClips()
+  const { hideFilm } = usePrefs()
+  const clips = userClips && (hideFilm ? userClips : [{ id: 0, ...FILM }, ...userClips])
   const clipInput = useRef<HTMLInputElement>(null)
   const [fit, setFit] = useState<ClipFit>('sigdir')
   const canvas = useRef<HTMLCanvasElement>(null)
-  const [kind, setKind] = useState<Kind>('cizgi')
+  const [kind, setKind] = useState<Kind>('klip')
   const [count, setCount] = useState<(typeof COUNTS)[number]>(10)
   const [style, setStyle] = useState<AnimStyle>('karisik')
   const [length, setLength] = useState<Length>('kisa8')
@@ -122,7 +128,7 @@ export function Anim({ settings }: { settings: Settings }) {
     setPhase('loading')
     await fontsReady()
 
-    const film = kind === 'klip' ? new ClipFilm({ clips: clips!.map((x) => x.blob), a: settings.a, b: settings.b, start: settings.start, fit }) : null
+    const film = kind === 'klip' ? new ClipFilm({ clips: clips!.map((x) => ('blob' in x ? x.blob : x.src)), a: settings.a, b: settings.b, start: settings.start, fit }) : null
     const animator: FrameSource =
       film ??
       (kind === 'cizgi'
@@ -330,11 +336,24 @@ export function Anim({ settings }: { settings: Settings }) {
                       <ul className="songs">
                         {clips.map((x, i) => (
                           <li key={x.id}>
+                            {x.id === 0 ? (
+                              <>
+                                <span>
+                                  {i + 1}. {x.name} · {Math.round(x.duration)} sn
+                                </span>
+                                <span className="clip-btns">
+                                  <button type="button" className="icon-btn" aria-label="Hazır videoyu listeden kaldır" disabled={busy} onClick={() => savePrefs({ hideFilm: true })}>
+                                    <IconTrash />
+                                  </button>
+                                </span>
+                              </>
+                            ) : (
+                            <>
                             <span>
                               {i + 1}. {x.name} · {Math.round(x.duration)} sn
                             </span>
                             <span className="clip-btns">
-                              <button type="button" className="icon-btn" aria-label="Yukarı taşı" disabled={busy || i === 0} onClick={() => moveClip(x.id, -1)}>
+                              <button type="button" className="icon-btn" aria-label="Yukarı taşı" disabled={busy || i === 0 || clips[i - 1].id === 0} onClick={() => moveClip(x.id, -1)}>
                                 ↑
                               </button>
                               <button type="button" className="icon-btn" aria-label="Aşağı taşı" disabled={busy || i === clips.length - 1} onClick={() => moveClip(x.id, 1)}>
@@ -344,6 +363,8 @@ export function Anim({ settings }: { settings: Settings }) {
                                 <IconTrash />
                               </button>
                             </span>
+                            </>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -354,6 +375,11 @@ export function Anim({ settings }: { settings: Settings }) {
                       <button type="button" className="btn ghost" disabled={busy} onClick={() => clipInput.current?.click()}>
                         Video ekle
                       </button>
+                      {hideFilm && (
+                        <button type="button" className="btn ghost" disabled={busy} onClick={() => savePrefs({ hideFilm: false })}>
+                          Hazır videoyu geri getir
+                        </button>
+                      )}
                     </div>
                     <input
                       ref={clipInput}
