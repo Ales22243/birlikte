@@ -8,6 +8,27 @@ export const FADE = 0.9
 export const INTRO = 3.6
 export const OUTRO = 3.4
 
+export interface Timing {
+  intro: number
+  scene: number
+  fade: number
+  outro: number
+}
+
+export const DEFAULT_TIMING: Timing = { intro: INTRO, scene: SCENE, fade: FADE, outro: OUTRO }
+
+export type Length = 'kisa5' | 'kisa8' | 'kisa10' | 'uzun'
+
+/** Kısa filmlerde açılış yok; her fotoğraf kısa kalır, hedef süreye sığacak kadar fotoğraf alınır. */
+export function planFor(length: Length, available: number, wanted: number): { timing: Timing; count: number } {
+  if (length === 'uzun') return { timing: DEFAULT_TIMING, count: wanted === 0 ? available : Math.min(wanted, available) }
+  const target = length === 'kisa5' ? 5 : length === 'kisa8' ? 8 : 10
+  const scene = length === 'kisa5' ? 1.6 : 2
+  const outro = length === 'kisa5' ? 1.8 : length === 'kisa8' ? 1.8 : 2
+  const timing: Timing = { intro: 0, scene, fade: 0.5, outro }
+  return { timing, count: Math.min(available, Math.max(1, Math.round((target - outro) / scene))) }
+}
+
 export type AnimStyle = 'karisik' | 'yakin' | 'polaroid'
 
 export interface AnimPhoto {
@@ -22,6 +43,7 @@ export interface AnimInput {
   b: string
   start: string
   style: AnimStyle
+  timing?: Timing
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
@@ -105,11 +127,13 @@ export class Animator {
   private heart = new Path2D('M12 21.2C5.2 16 2.6 12.4 2.6 8.6 2.6 5.8 4.8 3.6 7.5 3.6c1.8 0 3.5 1 4.5 2.6 1-1.6 2.7-2.6 4.5-2.6 2.7 0 4.9 2.2 4.9 5 0 3.8-2.6 7.4-9.4 12.6z')
 
   private input: AnimInput
+  private T: Timing
 
   constructor(input: AnimInput) {
     this.input = input
+    this.T = input.timing ?? DEFAULT_TIMING
     this.n = input.photos.length
-    this.duration = INTRO + this.n * SCENE + OUTRO
+    this.duration = this.T.intro + this.n * this.T.scene + this.T.outro
     this.days = Math.max(0, daysBetween(parseISO(input.start), new Date()))
   }
 
@@ -144,7 +168,7 @@ export class Animator {
 
   /** Şu an k. sahnedeyiz: yakındakileri hazırla, uzaktakilerin belleğini bırak. */
   prefetch(t: number) {
-    const k = Math.floor((t - INTRO) / SCENE)
+    const k = Math.floor((t - this.T.intro) / this.T.scene)
     for (const j of [k, k + 1, k + 2]) void this.load(j)
     for (const [idx, d] of this.cache) {
       if (idx < k - 1 || idx > k + 3) {
@@ -162,23 +186,27 @@ export class Animator {
   }
 
   draw(ctx: CanvasRenderingContext2D, t: number) {
-    if (t < INTRO) {
+    if (this.T.intro > 0 && t < this.T.intro) {
       this.drawIntro(ctx, t, 1)
     } else {
-      const s = t - INTRO
-      const k = Math.floor(s / SCENE)
+      const s = t - this.T.intro
+      const k = Math.floor(s / this.T.scene)
       if (k >= this.n) {
-        const u = s - this.n * SCENE
-        if (u < FADE && this.n > 0) {
-          this.drawScene(ctx, this.n - 1, SCENE + u, 1)
-          this.drawOutro(ctx, u, easeInOut(u / FADE))
+        const u = s - this.n * this.T.scene
+        if (u < this.T.fade && this.n > 0) {
+          this.drawScene(ctx, this.n - 1, this.T.scene + u, 1)
+          this.drawOutro(ctx, u, easeInOut(u / this.T.fade))
         } else this.drawOutro(ctx, u, 1)
       } else {
-        const local = s - k * SCENE
-        if (local < FADE) {
-          if (k === 0) this.drawIntro(ctx, INTRO, 1)
-          else this.drawScene(ctx, k - 1, SCENE + local, 1)
-          this.drawScene(ctx, k, local, easeInOut(local / FADE))
+        const local = s - k * this.T.scene
+        if (local < this.T.fade) {
+          if (k === 0 && this.T.intro === 0) {
+            this.drawScene(ctx, k, local, 1)
+          } else {
+            if (k === 0) this.drawIntro(ctx, this.T.intro, 1)
+            else this.drawScene(ctx, k - 1, this.T.scene + local, 1)
+            this.drawScene(ctx, k, local, easeInOut(local / this.T.fade))
+          }
         } else this.drawScene(ctx, k, local, 1)
       }
     }
@@ -277,7 +305,7 @@ export class Animator {
 
   private photoKenBurns(ctx: CanvasRenderingContext2D, i: number, d: Decoded, local: number) {
     const m = MOVES[i % MOVES.length]
-    const p = clamp01(local / (SCENE + FADE))
+    const p = clamp01(local / (this.T.scene + this.T.fade))
     const s = lerp(m.s0, m.s1, p)
     const cover = Math.max(W / d.width, H / d.height) * s
     const dw = d.width * cover
@@ -320,7 +348,7 @@ export class Animator {
     ctx.save()
     roundRect(ctx, -pw / 2, -ch / 2 + pad, pw, ph, 3)
     ctx.clip()
-    const z = 1 + 0.06 * clamp01(local / (SCENE + FADE))
+    const z = 1 + 0.06 * clamp01(local / (this.T.scene + this.T.fade))
     const cover = Math.max(pw / d.width, ph / d.height) * z
     const dw = d.width * cover
     const dh = d.height * cover

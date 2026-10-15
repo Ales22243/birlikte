@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Settings } from '../data/settings'
 import { usePhotos } from '../data/photos'
 import { useSongs } from '../data/songs'
-import { Animator, H, W, pickRecorderFormat, type AnimStyle } from '../lib/animator'
+import { Animator, H, W, pickRecorderFormat, planFor, type AnimStyle, type Length } from '../lib/animator'
 import { startMusicBox, startPlaylist, startSongsInto, type Player } from '../lib/music'
 import { IconPlay } from '../ui/icons'
 
@@ -10,6 +10,12 @@ type Phase = 'idle' | 'loading' | 'preview' | 'recording' | 'done'
 type MusicChoice = 'kutu' | 'sarki' | 'sessiz'
 
 const COUNTS = [5, 10, 20, 0] as const
+const LENGTHS: { id: Length; label: string }[] = [
+  { id: 'kisa5', label: '5 sn' },
+  { id: 'kisa8', label: '8 sn' },
+  { id: 'kisa10', label: '10 sn' },
+  { id: 'uzun', label: 'Uzun' },
+]
 const STYLES: { id: AnimStyle; label: string }[] = [
   { id: 'karisik', label: 'Karışık' },
   { id: 'yakin', label: 'Yakınlaşma' },
@@ -32,6 +38,9 @@ export function Anim({ settings }: { settings: Settings }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const [count, setCount] = useState<(typeof COUNTS)[number]>(10)
   const [style, setStyle] = useState<AnimStyle>('karisik')
+  const [length, setLength] = useState<Length>('kisa8')
+  const [random, setRandom] = useState(false)
+  const [seed, setSeed] = useState(1)
   const [music, setMusic] = useState<MusicChoice>('kutu')
   const [phase, setPhase] = useState<Phase>('idle')
   const [t, setT] = useState(0)
@@ -41,14 +50,23 @@ export function Anim({ settings }: { settings: Settings }) {
   const stopRef = useRef<(() => void) | null>(null)
   const format = useMemo(() => pickRecorderFormat(), [])
 
-  // Seçilen sayıda en yeni fotoğrafı, eskiden yeniye sıralar
+  const plan = useMemo(() => planFor(length, photos?.length ?? 0, count), [length, photos?.length, count])
+
+  // Kısa filmde hedef süreye sığan sayıda fotoğraf; en yeniler ya da rastgele. Video eskiden yeniye oynar.
   const chosen = useMemo(() => {
     if (!photos) return []
-    const list = count === 0 ? photos : photos.slice(0, count)
-    return [...list].reverse()
-  }, [photos, count])
+    let list = photos
+    if (length !== 'uzun' && random) {
+      const r = (k: number) => {
+        const v = Math.sin((k + seed * 97) * 12.9898) * 43758.5453
+        return v - Math.floor(v)
+      }
+      list = [...photos].sort((x, y) => r(x.id) - r(y.id))
+    }
+    return list.slice(0, plan.count).sort((x, y) => x.takenAt.localeCompare(y.takenAt) || x.id - y.id)
+  }, [photos, length, random, seed, plan.count])
 
-  const estimate = chosen.length ? 3.6 + chosen.length * 3.2 + 3.4 : 0
+  const estimate = chosen.length ? plan.timing.intro + chosen.length * plan.timing.scene + plan.timing.outro : 0
 
   // Boşta duran tuvale kapak karesi çiz
   useEffect(() => {
@@ -90,6 +108,7 @@ export function Anim({ settings }: { settings: Settings }) {
       b: settings.b,
       start: settings.start,
       style,
+      timing: plan.timing,
     })
     await animator.prepare()
     const ctx = c.getContext('2d')!
@@ -260,15 +279,42 @@ export function Anim({ settings }: { settings: Settings }) {
           <>
             <div className="card wide opts">
               <fieldset>
-                <legend>Kaç fotoğraf</legend>
+                <legend>Süre</legend>
                 <div className="seg4" role="radiogroup">
-                  {COUNTS.map((n) => (
-                    <button key={n} type="button" role="radio" aria-checked={count === n} disabled={busy} onClick={() => setCount(n)}>
-                      {n === 0 ? 'Hepsi' : `Son ${n}`}
+                  {LENGTHS.map((l) => (
+                    <button key={l.id} type="button" role="radio" aria-checked={length === l.id} disabled={busy} onClick={() => setLength(l.id)}>
+                      {l.label}
                     </button>
                   ))}
                 </div>
               </fieldset>
+              {length === 'uzun' ? (
+                <fieldset>
+                  <legend>Kaç fotoğraf</legend>
+                  <div className="seg4" role="radiogroup">
+                    {COUNTS.map((n) => (
+                      <button key={n} type="button" role="radio" aria-checked={count === n} disabled={busy} onClick={() => setCount(n)}>
+                        {n === 0 ? 'Hepsi' : `Son ${n}`}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              ) : (
+                <fieldset>
+                  <legend>Hangi fotoğraflar</legend>
+                  <div className="seg3" role="radiogroup">
+                    <button type="button" role="radio" aria-checked={!random} disabled={busy} onClick={() => setRandom(false)}>
+                      En yeniler
+                    </button>
+                    <button type="button" role="radio" aria-checked={random} disabled={busy} onClick={() => setRandom(true)}>
+                      Rastgele
+                    </button>
+                    <button type="button" disabled={busy || !random} onClick={() => setSeed((n) => n + 1)}>
+                      Karıştır
+                    </button>
+                  </div>
+                </fieldset>
+              )}
               <fieldset>
                 <legend>Stil</legend>
                 <div className="seg3" role="radiogroup">
@@ -295,7 +341,7 @@ export function Anim({ settings }: { settings: Settings }) {
                 {!songs?.length && <small className="muted">Şarkılarım için Ayarlar'dan şarkı ekleyin.</small>}
               </fieldset>
               <p className="muted small-note">
-                {chosen.length} fotoğraf · yaklaşık {fmtSec(estimate)} uzunluğunda dikey video.
+                {chosen.length} fotoğraf · yaklaşık {Math.round(estimate)} saniyelik dikey video.
               </p>
             </div>
 
