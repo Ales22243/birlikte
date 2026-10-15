@@ -1530,3 +1530,64 @@ a.btn {
 .seg4 button:disabled {
   opacity: 0.45;
 }
+
+/* ---------- akıcı kaydırma (iPhone) ----------
+   Bulanıklaştırma (backdrop-filter) kaydırırken her karede yeniden hesaplanır; kaldırıldı. */
+.nav,
+.chip,
+.icon-btn,
+.selectbar,
+.reminder,
+.next,
+.progress {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.nav {
+  background: color-mix(in srgb, var(--night) 96%, transparent);
+}
+.chip,
+.selectbar,
+.reminder,
+.next {
+  background: rgb(var(--scrim) / 0.82);
+}
+.icon-btn {
+  background: rgb(var(--scrim) / 0.7);
+}
+.view {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+/* Izgara: sabit oranlı kareler; fotoğraflar yüklendikçe yeniden dizilmez, görünmeyenler çizilmez. */
+.grid {
+  columns: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.grid li {
+  margin: 0;
+  break-inside: auto;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 230px;
+}
+.tile {
+  aspect-ratio: 3 / 4;
+  min-height: 0;
+}
+.tile img {
+  height: 100%;
+  object-fit: cover;
+  transition: none;
+}
+.tile:active img {
+  transform: none;
+}
+.tile-bad {
+  height: 100%;
+}
+.stage-wrap {
+  box-shadow: none;
+  contain: layout paint;
+}

@@ -58,6 +58,8 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
     if (!todo.length) return
     migrating.current = true
     void (async () => {
+      // Kullanıcı kaydırırken ağır iş yapmamak için açılıştan sonra bekler, her fotoğraftan sonra dinlenir.
+      await new Promise((res) => setTimeout(res, 4000))
       for (const r of todo) {
         try {
           const { thumb } = await prepare(r.blob)
@@ -65,7 +67,7 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
         } catch {
           await db.photos.update(r.id, { thumbFailed: true })
         }
-        await breathe()
+        await new Promise((res) => setTimeout(res, 400))
       }
       migrating.current = false
     })()
