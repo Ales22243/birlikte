@@ -42,7 +42,6 @@ export interface PState {
 
 const SKIN = { adem: '#efc29a', sena: '#f6d5b8' }
 const HAIR_A = '#3a2b22'
-const BEARD = '#4a3427'
 const HAIR_S = '#c98a55'
 const HAIR_S_LIGHT = '#e9bd82'
 const SHIRT_A = '#f08a24'
@@ -106,7 +105,7 @@ function limb(
   return { x: sx + dx, y: sy + dy }
 }
 
-function eye(ctx: CanvasRenderingContext2D, x: number, y: number, R: number, look: number, blink: number, lash: boolean, happy = false) {
+function eye(ctx: CanvasRenderingContext2D, x: number, y: number, R: number, look: number, blink: number, lash: boolean, happy = false, iris = '#6a4326') {
   const rx = R * 0.17
   if (happy) {
     ctx.strokeStyle = '#2a1a14'
@@ -133,7 +132,7 @@ function eye(ctx: CanvasRenderingContext2D, x: number, y: number, R: number, loo
   ctx.save()
   ellipse(ctx, x, y, rx, ry)
   ctx.clip()
-  ctx.fillStyle = '#6a4326'
+  ctx.fillStyle = iris
   ctx.beginPath()
   ctx.arc(x + look * R * 0.07, y + R * 0.01, R * 0.125, 0, TAU)
   ctx.fill()
@@ -222,38 +221,62 @@ function drawHeadFront(ctx: CanvasRenderingContext2D, who: Who, R: number, p: PS
   // yüz
   ctx.fillStyle = skin
   ctx.beginPath()
-  ctx.moveTo(-R * 0.95, -R * 0.1)
-  ctx.bezierCurveTo(-R * 0.95, -R * 1.1, R * 0.95, -R * 1.1, R * 0.95, -R * 0.1)
-  ctx.bezierCurveTo(R * 0.98, R * 0.7, R * 0.55, R * 1.08, 0, R * 1.1)
-  ctx.bezierCurveTo(-R * 0.55, R * 1.08, -R * 0.98, R * 0.7, -R * 0.95, -R * 0.1)
+  if (who === 'adem') {
+    // dolgun, yuvarlak yüz
+    ctx.moveTo(-R * 0.98, -R * 0.1)
+    ctx.bezierCurveTo(-R * 0.98, -R * 1.1, R * 0.98, -R * 1.1, R * 0.98, -R * 0.1)
+    ctx.bezierCurveTo(R * 1.04, R * 0.72, R * 0.62, R * 1.12, 0, R * 1.14)
+    ctx.bezierCurveTo(-R * 0.62, R * 1.12, -R * 1.04, R * 0.72, -R * 0.98, -R * 0.1)
+  } else {
+    ctx.moveTo(-R * 0.95, -R * 0.1)
+    ctx.bezierCurveTo(-R * 0.95, -R * 1.1, R * 0.95, -R * 1.1, R * 0.95, -R * 0.1)
+    ctx.bezierCurveTo(R * 0.98, R * 0.7, R * 0.55, R * 1.08, 0, R * 1.1)
+    ctx.bezierCurveTo(-R * 0.55, R * 1.08, -R * 0.98, R * 0.7, -R * 0.95, -R * 0.1)
+  }
   ctx.fill()
 
   if (who === 'adem') {
-    // Sakal
-    ctx.fillStyle = BEARD
+    // kısa, bakımlı kirli sakal (çene hattını izler)
+    ctx.fillStyle = 'rgba(96,76,60,0.82)'
     ctx.beginPath()
-    ctx.moveTo(-R * 0.96, -R * 0.02)
-    ctx.bezierCurveTo(-R * 1.02, R * 0.85, -R * 0.55, R * 1.2, 0, R * 1.24)
-    ctx.bezierCurveTo(R * 0.55, R * 1.2, R * 1.02, R * 0.85, R * 0.96, -R * 0.02)
-    ctx.bezierCurveTo(R * 0.78, R * 0.34, R * 0.5, R * 0.4, R * 0.26, R * 0.36)
-    ctx.bezierCurveTo(R * 0.1, R * 0.33, -R * 0.1, R * 0.33, -R * 0.26, R * 0.36)
-    ctx.bezierCurveTo(-R * 0.5, R * 0.4, -R * 0.78, R * 0.34, -R * 0.96, -R * 0.02)
+    ctx.moveTo(-R * 0.99, R * 0.2)
+    ctx.bezierCurveTo(-R * 1.04, R * 0.78, -R * 0.62, R * 1.12, 0, R * 1.15)
+    ctx.bezierCurveTo(R * 0.62, R * 1.12, R * 1.04, R * 0.78, R * 0.99, R * 0.2)
+    ctx.bezierCurveTo(R * 0.86, R * 0.4, R * 0.62, R * 0.46, R * 0.36, R * 0.46)
+    ctx.bezierCurveTo(R * 0.2, R * 0.4, R * 0.08, R * 0.38, 0, R * 0.38)
+    ctx.bezierCurveTo(-R * 0.08, R * 0.38, -R * 0.2, R * 0.4, -R * 0.36, R * 0.45)
+    ctx.bezierCurveTo(-R * 0.62, R * 0.46, -R * 0.86, R * 0.4, -R * 0.99, R * 0.2)
     ctx.fill()
-    // bıyık
-    ctx.beginPath()
-    ctx.moveTo(-R * 0.3, R * 0.4)
-    ctx.quadraticCurveTo(0, R * 0.3, R * 0.3, R * 0.4)
-    ctx.quadraticCurveTo(0, R * 0.46, -R * 0.3, R * 0.4)
-    ctx.fill()
-    // saç: geriye çekilmiş saç çizgisi
+    // kısa saç: geniş alın, şakaklardan geriye açık (M saç çizgisi), üstte hafif kabarık
+    const hair = new Path2D()
+    hair.moveTo(-R * 1.0, R * 0.16)
+    hair.bezierCurveTo(-R * 1.18, -R * 0.9, -R * 0.6, -R * 1.42, R * 0.04, -R * 1.38)
+    hair.bezierCurveTo(R * 0.7, -R * 1.42, R * 1.18, -R * 0.9, R * 1.0, R * 0.16)
+    hair.bezierCurveTo(R * 0.99, -R * 0.05, R * 0.94, -R * 0.2, R * 0.86, -R * 0.34)
+    hair.quadraticCurveTo(R * 0.8, -R * 0.52, R * 0.62, -R * 0.74)
+    hair.quadraticCurveTo(R * 0.4, -R * 0.84, R * 0.2, -R * 0.74)
+    hair.quadraticCurveTo(R * 0.06, -R * 0.68, 0, -R * 0.74)
+    hair.quadraticCurveTo(-R * 0.06, -R * 0.68, -R * 0.2, -R * 0.74)
+    hair.quadraticCurveTo(-R * 0.4, -R * 0.84, -R * 0.62, -R * 0.74)
+    hair.quadraticCurveTo(-R * 0.8, -R * 0.52, -R * 0.86, -R * 0.34)
+    hair.bezierCurveTo(-R * 0.94, -R * 0.2, -R * 0.99, -R * 0.05, -R * 1.0, R * 0.16)
     ctx.fillStyle = HAIR_A
-    ctx.beginPath()
-    ctx.moveTo(-R * 1.0, R * 0.0)
-    ctx.bezierCurveTo(-R * 1.12, -R * 1.0, -R * 0.5, -R * 1.34, 0, -R * 1.3)
-    ctx.bezierCurveTo(R * 0.5, -R * 1.34, R * 1.12, -R * 1.0, R * 1.0, R * 0.0)
-    ctx.bezierCurveTo(R * 0.96, -R * 0.2, R * 0.82, -R * 0.4, R * 0.68, -R * 0.52)
-    ctx.bezierCurveTo(R * 0.4, -R * 0.74, -R * 0.4, -R * 0.74, -R * 0.68, -R * 0.52)
-    ctx.bezierCurveTo(-R * 0.82, -R * 0.4, -R * 0.96, -R * 0.2, -R * 1.0, R * 0.0)
+    ctx.fill(hair)
+    ctx.save()
+    ctx.clip(hair)
+    ctx.strokeStyle = '#5a4637'
+    ctx.lineWidth = R * 0.04
+    ctx.lineCap = 'round'
+    for (let i = -4; i <= 4; i++) {
+      ctx.beginPath()
+      ctx.moveTo(i * R * 0.2, -R * 0.78)
+      ctx.quadraticCurveTo(i * R * 0.24 + R * 0.08, -R * 1.05, i * R * 0.28 + R * 0.18, -R * 1.3)
+      ctx.stroke()
+    }
+    ctx.restore()
+    // alnın parlaması
+    ctx.fillStyle = 'rgba(255,255,255,0.14)'
+    ellipse(ctx, -R * 0.28, -R * 0.52, R * 0.24, R * 0.1)
     ctx.fill()
   } else {
     // Sena: ortadan ayrık, yüzü çerçeveleyen saç
@@ -285,7 +308,7 @@ function drawHeadFront(ctx: CanvasRenderingContext2D, who: Who, R: number, p: PS
 
   // yanaklar
   const blush = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.22)
-  blush.addColorStop(0, 'rgba(255,120,120,0.35)')
+  blush.addColorStop(0, who === 'adem' ? 'rgba(255,110,110,0.5)' : 'rgba(255,120,120,0.35)')
   blush.addColorStop(1, 'rgba(255,120,120,0)')
   for (const sd of [-1, 1]) {
     ctx.save()
@@ -296,17 +319,23 @@ function drawHeadFront(ctx: CanvasRenderingContext2D, who: Who, R: number, p: PS
   }
   // gözler ve kaşlar
   const ey = -R * 0.08
-  eye(ctx, -R * 0.38, ey, R, look, blink, who === 'sena', happy)
-  eye(ctx, R * 0.38, ey, R, look, blink, who === 'sena', happy)
+  const iris = who === 'adem' ? '#85703c' : '#6a4326'
+  eye(ctx, -R * 0.38, ey, R, look, blink, who === 'sena', happy, iris)
+  eye(ctx, R * 0.38, ey, R, look, blink, who === 'sena', happy, iris)
   const raise = (p.squint ?? 0) * R * 0.04 + joy * R * 0.09
   if (who === 'adem') {
-    brow(ctx, -R * 0.38, -R * 0.38, R, '#2f221b', 0.09, raise)
-    brow(ctx, R * 0.38, -R * 0.38, R, '#2f221b', 0.09, raise)
+    brow(ctx, -R * 0.38, -R * 0.4, R, '#2a1d16', 0.135, raise)
+    brow(ctx, R * 0.38, -R * 0.4, R, '#2a1d16', 0.135, raise)
   } else {
     brow(ctx, -R * 0.38, -R * 0.4, R, '#9a6540', 0.06, raise)
     brow(ctx, R * 0.38, -R * 0.4, R, '#9a6540', 0.06, raise)
   }
   // burun
+  if (who === 'adem') {
+    ctx.fillStyle = 'rgba(214,150,115,0.55)'
+    ellipse(ctx, look * R * 0.05, R * 0.26, R * 0.17, R * 0.12)
+    ctx.fill()
+  }
   ctx.strokeStyle = who === 'adem' ? '#c98f69' : '#e0a883'
   ctx.lineWidth = R * 0.045
   ctx.lineCap = 'round'
@@ -316,7 +345,7 @@ function drawHeadFront(ctx: CanvasRenderingContext2D, who: Who, R: number, p: PS
   ctx.stroke()
   // ağız
   const mw = 1 + joy * 0.3
-  if (who === 'adem') mouthShape(ctx, R, R * 0.6, R * 0.26 * mw, p.mouth, '#e8a79a')
+  if (who === 'adem') mouthShape(ctx, R, R * 0.62, R * 0.32 * mw, p.mouth, '#f0b3a6')
   else mouthShape(ctx, R, R * 0.58, R * 0.24 * mw, p.mouth, '#d2625f')
   if (joy > 0.4) {
     // gözyaşları
